@@ -1,0 +1,31 @@
+# build
+node_modules/
+dist/
+build/
+
+# env
+.env
+.env.local
+.env.*.local
+
+# logs
+npm-debug.log
+
+.vscode/
+.next/
+out/
+
+# .NET
+**/bin/
+**/obj/
+*.user
+*.suo
+*.cache
+*.log
+
+# macOS
+.DS_Store
+
+# Node
+**/node_modules/
+frontend/dist/

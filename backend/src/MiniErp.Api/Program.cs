@@ -1,0 +1,103 @@
+using MiniErp.Application.Abstractions;
+using MiniErp.Application.Products;
+using MiniErp.Domain.Auth;
+using MiniErp.Infrastructure.Common;
+using MiniErp.Infrastructure.Products;
+using Amazon.DynamoDBv2;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// Swagger
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
+// DI
+builder.Services.AddHttpContextAccessor();
+
+// 临时 CurrentUser（后面接 Cognito 会替换掉）
+builder.Services.AddScoped<ICurrentUser>(_ => new LocalCurrentUser());
+
+// Clock + Repo + Service
+builder.Services.AddSingleton<IClock, SystemClock>();
+
+var useDdb = builder.Configuration.GetValue<bool>("UseDynamoDb");
+
+if (useDdb)
+{
+    builder.Services.AddAWSService<IAmazonDynamoDB>();
+    builder.Services.AddSingleton<IProductRepository>(sp =>
+        new DynamoDbProductRepository(
+            sp.GetRequiredService<IAmazonDynamoDB>(),
+            builder.Configuration["DynamoDb:TableName"] ?? "MiniErp"
+        ));
+}
+else
+{
+    builder.Services.AddSingleton<IProductRepository, InMemoryProductRepository>();
+}
+
+builder.Services.AddScoped<ProductService>();
+
+var app = builder.Build();
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
+app.MapGet("/health", () => Results.Ok(new { ok = true }));
+
+app.MapGet("/me", (ICurrentUser user) => Results.Ok(new
+{
+    userId = user.UserId,
+    email = user.Email,
+    role = user.Role.ToString(),
+    orgId = user.OrgId
+}));
+
+app.MapPost("/products", async (MiniErp.Application.Products.Models.CreateProductRequest req, ProductService svc, CancellationToken ct) =>
+{
+    var id = await svc.CreateAsync(req, ct);
+    return Results.Created($"/products/{id}", new { id });
+});
+
+app.MapGet("/products/{id}", async (string id, ProductService svc, CancellationToken ct) =>
+{
+    var product = await svc.GetAsync(id, ct);
+    return product is null ? Results.NotFound() : Results.Ok(product);
+});
+
+app.MapGet("/products", async (string? keyword, int? limit, string? cursor, ProductService svc, CancellationToken ct) =>
+{
+    var data = await svc.ListAsync(keyword, limit ?? 50, cursor, ct);
+    return Results.Ok(new { items = data });
+});
+app.MapPut("/products/{id}", async (
+    string id,
+    MiniErp.Application.Products.Models.UpdateProductRequest req,
+    ProductService svc,
+    CancellationToken ct) =>
+{
+    await svc.UpdateAsync(id, req, ct);
+    return Results.NoContent();
+});
+
+app.MapDelete("/products/{id}", async (
+    string id,
+    ProductService svc,
+    CancellationToken ct) =>
+{
+    await svc.SoftDeleteAsync(id, ct);
+    return Results.NoContent();
+});
+
+app.Run();
+
+sealed class LocalCurrentUser : ICurrentUser
+{
+    public string UserId => "local-user";
+    public string Email => "local@example.com";
+    public string OrgId => "demo-org";
+    public Role Role => Role.Admin;
+}
