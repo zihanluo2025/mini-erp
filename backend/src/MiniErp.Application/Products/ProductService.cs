@@ -50,7 +50,9 @@ public sealed class ProductService
     public Task<IReadOnlyList<ProductDto>> ListAsync(string? keyword, int limit, string? cursor, CancellationToken ct)
         => _repo.ListAsync(_currentUser.OrgId, keyword, limit, cursor, ct);
 
-
+     // page list with cursor-based pagination
+    public Task<PagedResult<ProductDto>> PageListAsync(string orgId, string? keyword, int limit, string? cursor, CancellationToken ct)
+        => _repo.PageListAsync(orgId, keyword, limit, cursor, ct);
     
 
     public async Task UpdateAsync(string id, UpdateProductRequest req, CancellationToken ct)

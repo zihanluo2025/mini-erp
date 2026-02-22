@@ -2,6 +2,9 @@ using Amazon.DynamoDBv2;
 using Amazon.DynamoDBv2.Model;
 using MiniErp.Application.Products;
 using MiniErp.Application.Products.Models;
+using System.Text;
+using System.Text.Json;
+using MiniErp.Application.Abstractions;
 
 namespace MiniErp.Infrastructure.Products;
 
@@ -97,6 +100,50 @@ public sealed class DynamoDbProductRepository : IProductRepository
         return list;
     }
 
+    public async Task<PagedResult<ProductDto>> PageListAsync(
+    string orgId,
+    string? keyword,
+    int limit,
+    string? cursor,
+    CancellationToken ct)
+{
+    var safeLimit = Math.Clamp(limit, 1, 200);
+
+    var req = new QueryRequest
+    {
+        TableName = _table,
+        KeyConditionExpression = "PK = :pk AND begins_with(SK, :prefix)",
+        ExpressionAttributeValues = new Dictionary<string, AttributeValue>
+        {
+            [":pk"] = new AttributeValue { S = Pk(orgId) },
+            [":prefix"] = new AttributeValue { S = "PRODUCT#" }
+        },
+        Limit = safeLimit,
+        ScanIndexForward = false
+    };
+
+    var startKey = DecodeCursor(cursor);
+    if (startKey is not null)
+        req.ExclusiveStartKey = startKey;
+
+    var resp = await _ddb.QueryAsync(req, ct);
+
+    var items = resp.Items
+        .Select(MapToDto)
+        .Where(x => !x.IsDeleted)
+        .Where(x => string.IsNullOrWhiteSpace(keyword)
+                    || x.Name.Contains(keyword, StringComparison.OrdinalIgnoreCase)
+                    || x.Sku.Contains(keyword, StringComparison.OrdinalIgnoreCase))
+        .ToList()
+        .AsReadOnly();
+
+    string? nextCursor = (resp.LastEvaluatedKey is { Count: > 0 })
+        ? EncodeCursor(resp.LastEvaluatedKey)
+        : null;
+
+    return new PagedResult<ProductDto>(items, nextCursor);
+}
+
     private static ProductDto MapToDto(Dictionary<string, AttributeValue> item)
     {
         string GetS(string k) =>
@@ -171,6 +218,56 @@ public sealed class DynamoDbProductRepository : IProductRepository
         };
 
         await UpdateAsync(orgId, deleted, ct);
+    }
+
+    private static string EncodeCursor(Dictionary<string, AttributeValue> lastKey)
+    {
+        // 只存 PK/SK 就够（你的表 key 就这俩）
+        var payload = new Dictionary<string, string>
+        {
+            ["PK"] = lastKey["PK"].S!,
+            ["SK"] = lastKey["SK"].S!
+        };
+
+        var json = JsonSerializer.Serialize(payload);
+        return Base64UrlEncode(Encoding.UTF8.GetBytes(json));
+    }
+
+    private static Dictionary<string, AttributeValue>? DecodeCursor(string? cursor)
+    {
+        if (string.IsNullOrWhiteSpace(cursor)) return null;
+
+        var bytes = Base64UrlDecode(cursor);
+        var json = Encoding.UTF8.GetString(bytes);
+
+        var payload = JsonSerializer.Deserialize<Dictionary<string, string>>(json);
+        if (payload is null || !payload.TryGetValue("PK", out var pk) || !payload.TryGetValue("SK", out var sk))
+            return null;
+
+        return new Dictionary<string, AttributeValue>
+        {
+            ["PK"] = new AttributeValue { S = pk },
+            ["SK"] = new AttributeValue { S = sk }
+        };
+    }
+
+    private static string Base64UrlEncode(byte[] bytes)
+    {
+        return Convert.ToBase64String(bytes)
+            .TrimEnd('=')
+            .Replace('+', '-')
+            .Replace('/', '_');
+    }
+
+    private static byte[] Base64UrlDecode(string input)
+    {
+        var s = input.Replace('-', '+').Replace('_', '/');
+        switch (s.Length % 4)
+        {
+            case 2: s += "=="; break;
+            case 3: s += "="; break;
+        }
+        return Convert.FromBase64String(s);
     }
 
     

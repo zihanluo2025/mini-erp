@@ -73,6 +73,12 @@ app.MapGet("/products", async (string? keyword, int? limit, string? cursor, Prod
     var data = await svc.ListAsync(keyword, limit ?? 50, cursor, ct);
     return Results.Ok(new { items = data });
 });
+// page list with cursor-based pagination
+app.MapGet("/products/page", async (string? keyword, int? limit, string? cursor, ProductService svc, ICurrentUser user, CancellationToken ct) =>
+{
+    var page = await svc.PageListAsync(user.OrgId, keyword, limit ?? 50, cursor, ct);
+    return Results.Ok(new { items = page.Items, nextCursor = page.NextCursor });
+});
 app.MapPut("/products/{id}", async (
     string id,
     MiniErp.Application.Products.Models.UpdateProductRequest req,
