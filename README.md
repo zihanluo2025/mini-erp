@@ -14,7 +14,8 @@ API Gateway
         ↓
 AWS Lambda (.NET 8)
         ↓
-DynamoDB ```
+DynamoDB
+```
 
 # demo scrennshot
 <img width="2880" height="1558" alt="image" src="https://github.com/user-attachments/assets/5e9fcdb5-32e3-4afb-95b6-6deeae4ad21e" />
@@ -56,7 +57,7 @@ DynamoDB ```
 
 
 # Project Structure
-``
+ ```bash
 mini-erp/
 │
 ├── backend/        # ASP.NET Core Lambda project
@@ -64,7 +65,7 @@ mini-erp/
 ├── frontend/       # Next.js application
 │
 └── .gitignore
-``
+```
 
 # Purpose of This Project
 This project was built to demonstrate:
