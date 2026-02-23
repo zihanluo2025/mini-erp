@@ -4,12 +4,14 @@ using MiniErp.Domain.Auth;
 using MiniErp.Infrastructure.Common;
 using MiniErp.Infrastructure.Products;
 using Amazon.DynamoDBv2;
+using Amazon.Lambda.AspNetCoreServer.Hosting;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Swagger
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddAWSLambdaHosting(LambdaEventSource.HttpApi);
 
 // DI
 builder.Services.AddHttpContextAccessor();
