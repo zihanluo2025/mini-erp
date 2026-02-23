@@ -1,0 +1,89 @@
+# Mini ERP System
+A modern cloud-based ERP demo system built with ASP.NET Core (.NET 8) and Next.js 14, deployed on AWS (Lambda + API Gateway + Amplify).
+
+This project demonstrates full-stack engineering capability including backend API design, frontend UI architecture, cloud deployment, and DevOps automation.
+
+
+# Architecture Overview
+``    Frontend (Next.js + TypeScript)
+        ↓
+AWS Amplify Hosting
+        ↓
+API Gateway
+        ↓
+AWS Lambda (.NET 8)
+        ↓
+DynamoDB ``
+
+# demo scrennshot
+<img width="2880" height="1558" alt="image" src="https://github.com/user-attachments/assets/5e9fcdb5-32e3-4afb-95b6-6deeae4ad21e" />
+
+
+<img width="2880" height="1558" alt="image" src="https://github.com/user-attachments/assets/72c89ec3-4585-427b-831e-59b712d2c36f" />
+
+
+## Tech Stack
+
+### Backend
+- ASP.NET Core (.NET 8)
+- Minimal APIs
+- AWS Lambda
+- Amazon API Gateway
+- Amazon DynamoDB
+- AWS SDK for .NET
+
+### Frontend
+- Next.js 14 (App Router)
+- TypeScript
+- Tailwind CSS
+- shadcn/ui
+- Recharts (Dashboard Charts)
+- AWS Amplify Auth (Cognito)
+
+### DevOps 
+- AWS Lambda deployment
+- API Gateway routing
+- Amplify CI/CD
+- GitHub version control
+- Environment-based configuration
+
+# Features
+## Authentication
+- AWS Cognito authentication
+- Secure session management
+- Role-based UI access
+
+
+# Project Structure
+``
+mini-erp/
+│
+├── backend/        # ASP.NET Core Lambda project
+│
+├── frontend/       # Next.js application
+│
+└── .gitignore
+``
+
+# Purpose of This Project
+This project was built to demonstrate:
+
+- Full-stack development capability
+- Cloud-native architecture on AWS
+- Serverless backend deployment
+- Modern React (Next.js App Router)
+- Clean UI architecture with reusable components
+- DevOps workflow understanding
+
+# Future Improvements
+- Role-based access control
+- Order workflow logic
+- Inventory alert automation
+- CI/CD with GitHub Actions
+- Payment integration (Stripe)
+- Multi-tenant architecture
+
+# Author
+- Zihan Luo
+- Full-Stack Developer | Cloud & DevOps Enthusiast
+- Adelaide, Australia
