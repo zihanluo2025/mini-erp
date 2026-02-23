@@ -5,7 +5,8 @@ This project demonstrates full-stack engineering capability including backend AP
 
 
 # Architecture Overview
-``    Frontend (Next.js + TypeScript)
+ ```bash
+ Frontend (Next.js + TypeScript)
         ↓
 AWS Amplify Hosting
         ↓
@@ -13,7 +14,7 @@ API Gateway
         ↓
 AWS Lambda (.NET 8)
         ↓
-DynamoDB ``
+DynamoDB ```
 
 # demo scrennshot
 <img width="2880" height="1558" alt="image" src="https://github.com/user-attachments/assets/5e9fcdb5-32e3-4afb-95b6-6deeae4ad21e" />
