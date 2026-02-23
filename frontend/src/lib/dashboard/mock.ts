@@ -1,0 +1,90 @@
+/**
+ * Dashboard mock data (hard-coded for now).
+ * Replace with real API calls later.
+ */
+
+export type KpiItem = {
+  label: string;
+  value: number;
+  icon: string; // Use emoji for now; later swap to lucide icons.
+};
+
+export type SalesPoint = {
+  date: string;
+  amount: number;
+};
+
+export type PieItem = {
+  name: string;
+  value: number;
+};
+
+export type NoticeItem = {
+  title: string;
+  content: string;
+  tag: "NEW" | "ALERT" | "UPDATE";
+  time: string; // yyyy-mm-dd
+};
+
+export const KPI_ITEMS: KpiItem[] = [
+  { label: "Stock Quantity", value: 891, icon: "📦" },
+  { label: "Stock Value", value: 40490, icon: "💰" },
+  { label: "Purchase Orders", value: 15, icon: "🧾" },
+  { label: "Sales Orders", value: 36, icon: "🏷️" },
+];
+
+export const SALES_TREND: SalesPoint[] = [
+  { date: "2023-10-21", amount: 0 },
+  { date: "2023-10-22", amount: 300 },
+  { date: "2023-10-23", amount: 245 },
+  { date: "2023-10-24", amount: 95 },
+  { date: "2023-10-25", amount: 55 },
+  { date: "2023-10-26", amount: 95 },
+  { date: "2023-10-27", amount: 150 },
+];
+
+export const INVENTORY_DIST: PieItem[] = [
+  { name: "Premium Prunes", value: 13.47 },
+  { name: "Swiss Roll", value: 11.67 },
+  { name: "Kiss Candy", value: 9.65 },
+  { name: "Spiced Beef", value: 11.22 },
+  { name: "Mineral Water", value: 9.99 },
+  { name: "AD Calcium Milk", value: 21.89 },
+  { name: "Mixed Porridge", value: 11.22 },
+  { name: "Strawberry Pie", value: 10.89 },
+];
+
+export const PIE_COLORS = [
+  "#4f6bed",
+  "#7cc46b",
+  "#f2c14e",
+  "#ff7a7a",
+  "#67c3ff",
+  "#2fbf9f",
+  "#ff9f5a",
+  "#9b7cf6",
+];
+
+export const NOTICES: NoticeItem[] = [
+  {
+    title: "Welcome to Mini ERP",
+    content:
+      "This demo includes basic modules such as Products, Suppliers, Customers, and Orders.",
+    tag: "NEW",
+    time: "2026-02-23",
+  },
+  {
+    title: "Inventory Alert: Low stock detected",
+    content:
+      "Please create purchase orders to replenish inventory and avoid sales impact.",
+    tag: "ALERT",
+    time: "2026-02-22",
+  },
+  {
+    title: "Update: Dashboard UI improvements",
+    content:
+      "Added KPI cards, trend chart, inventory breakdown chart, and notice list.",
+    tag: "UPDATE",
+    time: "2026-02-21",
+  },
+];
