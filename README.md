@@ -16,7 +16,6 @@ This project demonstrates full-stack engineering capability including backend AP
 # demo scrennshot
 <img width="2880" height="1558" alt="image" src="https://github.com/user-attachments/assets/631545a9-d331-4aa0-a278-56875e85dc51" />
 
-<img width="2880" height="1558" alt="image" src="https://github.com/user-attachments/assets/5e9fcdb5-32e3-4afb-95b6-6deeae4ad21e" />
 
 
 <img width="2880" height="1558" alt="image" src="https://github.com/user-attachments/assets/14ebc989-4016-4f4e-9e62-bda30b28b313" />
