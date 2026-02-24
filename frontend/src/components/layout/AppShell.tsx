@@ -6,7 +6,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
-// import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
     DropdownMenu,
@@ -32,6 +31,7 @@ type UserInfo = {
     name?: string;
     preferred_username?: string;
 };
+
 type NavItem =
     | { href: string; label: string }
     | { label: string; children: { href: string; label: string }[] };
@@ -45,7 +45,6 @@ const NAV: NavItem[] = [
             { href: "/products", label: "Products" },
             { href: "/suppliers", label: "Suppliers" },
             { href: "/customers", label: "Customers" },
-
         ],
     },
 
@@ -61,7 +60,7 @@ const NAV: NavItem[] = [
         label: "Sales",
         children: [
             { href: "/sales/orders", label: "Orders" },
-            { href: "/sales/refunds", label: "Refunds" },
+            // { href: "/sales/refunds", label: "Refunds" },
         ],
     },
 
@@ -76,10 +75,7 @@ function getInitials(email?: string, name?: string) {
     const base = (name || email || "U").trim();
     const parts = base.split(/\s+/).filter(Boolean);
 
-    // Single word: take first 2 characters
     if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-
-    // Multi words: take first letter of first two words
     return (parts[0][0] + parts[1][0]).toUpperCase();
 }
 
@@ -92,15 +88,6 @@ function getHeaderTitle(pathname: string) {
     return pathname.replace("/", "");
 }
 
-/**
- * AppShell provides the classic ERP layout:
- * - Dark sidebar + active highlight
- * - Top header bar with user info + dropdown + logout
- * - Content area with padded container
- *
- * Note: Styling relies on your ERP theme classes in globals.css:
- * - erp-shell, erp-sidebar, erp-header, erp-content, erp-brand, erp-nav, erp-nav-item, erp-card (optional)
- */
 export default function AppShell({ children }: { children: ReactNode }) {
     const pathname = usePathname();
     const [user, setUser] = useState<UserInfo | null>(null);
@@ -131,7 +118,6 @@ export default function AppShell({ children }: { children: ReactNode }) {
         };
     }, []);
 
-    // Display name shown in the header: username > name > email > "User"
     const displayName = useMemo(() => {
         return user?.preferred_username || user?.name || user?.email || "User";
     }, [user]);
@@ -143,14 +129,13 @@ export default function AppShell({ children }: { children: ReactNode }) {
             <div className="grid grid-cols-[240px_1fr]">
                 {/* Sidebar */}
                 <aside className="min-h-screen erp-sidebar">
-                    {/* Brand / Logo area */}
                     <div className="erp-brand">Mini ERP</div>
 
-                    {/* Navigation */}
                     <nav className="erp-nav">
                         {NAV.map((item) => {
                             if ("href" in item) {
-                                const active = pathname === item.href;
+                                // 一级菜单：选中就高亮（支持子路由）
+                                const active = pathname === item.href || pathname.startsWith(item.href + "/");
 
                                 return (
                                     <Link key={item.href} href={item.href} className="block">
@@ -161,6 +146,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
                                 );
                             }
 
+                            // 二级菜单：父级永不高亮（只展开），子级选中才高亮
                             return (
                                 <NavGroup
                                     key={item.label}
@@ -175,12 +161,9 @@ export default function AppShell({ children }: { children: ReactNode }) {
 
                 {/* Main area */}
                 <main className="min-w-0">
-                    {/* Header */}
                     <header className="h-14 px-4 flex items-center justify-between erp-header">
-                        {/* Left: current route title */}
                         <div className="text-sm opacity-90">{headerTitle}</div>
 
-                        {/* Right: user menu */}
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" className="gap-2">
@@ -194,7 +177,6 @@ export default function AppShell({ children }: { children: ReactNode }) {
                             <DropdownMenuContent align="end" className="w-56">
                                 <DropdownMenuLabel>Account</DropdownMenuLabel>
 
-                                {/* Email shown as secondary info */}
                                 <div className="px-2 pb-2 text-xs text-muted-foreground break-all">
                                     {user?.email || "—"}
                                 </div>
@@ -214,7 +196,6 @@ export default function AppShell({ children }: { children: ReactNode }) {
                                 <DropdownMenuItem
                                     className="text-red-600 focus:text-red-600"
                                     onClick={async () => {
-                                        // Redirect to Cognito Hosted UI logout and return to /login
                                         await logout();
                                     }}
                                 >
@@ -224,7 +205,6 @@ export default function AppShell({ children }: { children: ReactNode }) {
                         </DropdownMenu>
                     </header>
 
-                    {/* Content */}
                     <div className="erp-content">
                         <div className="p-6">{children}</div>
                     </div>
