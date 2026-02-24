@@ -5,6 +5,13 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import {
+    LayoutDashboard,
+    Boxes,
+    Warehouse,
+    ShoppingCart,
+    Settings
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -15,62 +22,59 @@ import {
     DropdownMenuSeparator as DmSep,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+
 import NavGroup from "@/components/layout/NavGroup";
-
-// Ensures Amplify Auth is configured once on the client.
-import "@/lib/auth";
-
-// Logout helper (should redirect to Cognito Hosted UI logout and back to /login)
+import { fetchAuthSession } from "aws-amplify/auth";
 import { logout } from "@/lib/auth";
 
-// Reads current Cognito session tokens (ID token contains user claims)
-import { fetchAuthSession } from "aws-amplify/auth";
 
 type UserInfo = {
     email?: string;
     name?: string;
     preferred_username?: string;
 };
-
 type NavItem =
-    | { href: string; label: string }
-    | { label: string; children: { href: string; label: string }[] };
+    | { href: string; label: string; icon: unknown }
+    | { label: string; icon: unknown; children: { href: string; label: string }[] };
 
 const NAV: NavItem[] = [
-    { href: "/dashboard", label: "Dashboard" },
-
+    {
+        href: "/dashboard",
+        label: "Dashboard",
+        icon: LayoutDashboard,
+    },
     {
         label: "Basic Info",
+        icon: Boxes,
         children: [
             { href: "/products", label: "Products" },
             { href: "/suppliers", label: "Suppliers" },
             { href: "/customers", label: "Customers" },
         ],
     },
-
     {
         label: "Inventory",
+        icon: Warehouse,
         children: [
             { href: "/inventory/inbound", label: "Inbound" },
             { href: "/inventory/returns", label: "Returns" },
         ],
     },
-
     {
         label: "Sales",
+        icon: ShoppingCart,
         children: [
             { href: "/sales/orders", label: "Orders" },
-            // { href: "/sales/refunds", label: "Refunds" },
+            //   { href: "/sales/refunds", label: "Refunds" },
         ],
     },
-
-    { href: "/settings", label: "Settings" },
+    {
+        href: "/settings",
+        label: "Settings",
+        icon: Settings,
+    },
 ];
 
-/**
- * Returns user initials for AvatarFallback.
- * Prefers full name, falls back to email, then "U".
- */
 function getInitials(email?: string, name?: string) {
     const base = (name || email || "U").trim();
     const parts = base.split(/\s+/).filter(Boolean);
@@ -79,10 +83,6 @@ function getInitials(email?: string, name?: string) {
     return (parts[0][0] + parts[1][0]).toUpperCase();
 }
 
-/**
- * Simple label for the header breadcrumb/title.
- * e.g. "/products" -> "products", "/" -> "home"
- */
 function getHeaderTitle(pathname: string) {
     if (!pathname || pathname === "/") return "home";
     return pathname.replace("/", "");
@@ -134,23 +134,32 @@ export default function AppShell({ children }: { children: ReactNode }) {
                     <nav className="erp-nav">
                         {NAV.map((item) => {
                             if ("href" in item) {
-                                // 一级菜单：选中就高亮（支持子路由）
-                                const active = pathname === item.href || pathname.startsWith(item.href + "/");
+                                const active =
+                                    pathname === item.href ||
+                                    pathname.startsWith(item.href + "/");
+
+                                const Icon = item.icon;
 
                                 return (
                                     <Link key={item.href} href={item.href} className="block">
-                                        <div className={["erp-nav-item", active ? "active" : ""].join(" ")}>
-                                            {item.label}
+                                        <div
+                                            className={[
+                                                "erp-nav-item flex items-center gap-2",
+                                                active ? "active" : "",
+                                            ].join(" ")}
+                                        >
+                                            <Icon size={16} />
+                                            <span>{item.label}</span>
                                         </div>
                                     </Link>
                                 );
                             }
 
-                            // 二级菜单：父级永不高亮（只展开），子级选中才高亮
                             return (
                                 <NavGroup
                                     key={item.label}
                                     label={item.label}
+                                    icon={item.icon}
                                     childrenItems={item.children}
                                     pathname={pathname || "/"}
                                 />
@@ -159,7 +168,6 @@ export default function AppShell({ children }: { children: ReactNode }) {
                     </nav>
                 </aside>
 
-                {/* Main area */}
                 <main className="min-w-0">
                     <header className="h-14 px-4 flex items-center justify-between erp-header">
                         <div className="text-sm opacity-90">{headerTitle}</div>

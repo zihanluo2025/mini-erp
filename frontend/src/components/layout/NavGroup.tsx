@@ -1,16 +1,19 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { ChevronDown } from "lucide-react";
+import Icon from "lucide-react";
 
 export default function NavGroup({
     label,
+    icon: Icon,
     childrenItems,
     pathname,
 }: {
     label: string;
+    icon: unknown;
     childrenItems: { href: string; label: string }[];
     pathname: string;
 }) {
-
     const childActive = childrenItems.some(
         (c) => pathname === c.href || pathname.startsWith(c.href + "/")
     );
@@ -22,40 +25,50 @@ export default function NavGroup({
     }, [childActive]);
 
     return (
-        <div className="block">
+        <div>
             <button
                 type="button"
                 onClick={() => setOpen((v) => !v)}
                 className="w-full text-left"
             >
-
-                <div className={["erp-nav-item", "erp-nav-parent"].join(" ")}>
-                    <div className="flex items-center justify-between">
+                <div className="erp-nav-item erp-nav-parent flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <Icon size={16} />
                         <span>{label}</span>
-
-
                     </div>
+
+                    <ChevronDown
+                        size={14}
+                        className={`transition-transform ${open ? "rotate-180" : ""
+                            }`}
+                    />
                 </div>
             </button>
 
-            {open ? (
-                <div >
+            {open && (
+                <div>
                     {childrenItems.map((c) => {
-
-                        const active = pathname === c.href || pathname.startsWith(c.href + "/");
+                        const active =
+                            pathname === c.href || pathname.startsWith(c.href + "/");
 
                         return (
                             <Link key={c.href} href={c.href} className="block">
-                                <div className={["erp-nav-item", active ? "active" : ""].join(" ")}>
-                                    <div className="flex items-center gap-2 pl-4">
-                                        <span>{c.label}</span>
+                                <div
+                                    className={[
+                                        "erp-nav-item",
+                                        active ? "active" : "",
+                                    ].join(" ")}
+                                >
+                                    <div className="pl-6">
+                                        {c.label}
                                     </div>
+
                                 </div>
                             </Link>
                         );
                     })}
                 </div>
-            ) : null}
+            )}
         </div>
     );
 }

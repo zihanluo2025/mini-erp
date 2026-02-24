@@ -78,12 +78,8 @@ export default function ProductsPage() {
     const selectedIds = Object.keys(rowSelection ?? {}).filter((k) => (rowSelection as any)[k]);
 
     return (
-        <div className="p-6">
-            {/* Page header / breadcrumb area */}
-            <div className="mb-4">
-                <h1 className="text-3xl font-extrabold tracking-tight">Products</h1>
-                <p className="mt-1 text-sm text-muted-foreground">Manage product information</p>
-            </div>
+        <div className="p-2">
+
 
             <FilterBar
                 fields={
