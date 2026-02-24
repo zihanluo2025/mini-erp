@@ -6,7 +6,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
+// import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
     DropdownMenu,
@@ -16,6 +16,7 @@ import {
     DropdownMenuSeparator as DmSep,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import NavGroup from "@/components/layout/NavGroup";
 
 // Ensures Amplify Auth is configured once on the client.
 import "@/lib/auth";
@@ -31,18 +32,39 @@ type UserInfo = {
     name?: string;
     preferred_username?: string;
 };
-
-type NavItem = {
-    href: string;
-    label: string;
-};
+type NavItem =
+    | { href: string; label: string }
+    | { label: string; children: { href: string; label: string }[] };
 
 const NAV: NavItem[] = [
     { href: "/dashboard", label: "Dashboard" },
-    { href: "/products", label: "Products" },
-    { href: "/suppliers", label: "Suppliers" },
-    { href: "/customers", label: "Customers" },
-    { href: "/orders", label: "Orders" },
+
+    {
+        label: "Basic Info",
+        children: [
+            { href: "/products", label: "Products" },
+            { href: "/suppliers", label: "Suppliers" },
+            { href: "/customers", label: "Customers" },
+
+        ],
+    },
+
+    {
+        label: "Inventory",
+        children: [
+            { href: "/inventory/inbound", label: "Inbound" },
+            { href: "/inventory/returns", label: "Returns" },
+        ],
+    },
+
+    {
+        label: "Sales",
+        children: [
+            { href: "/sales/orders", label: "Orders" },
+            { href: "/sales/refunds", label: "Refunds" },
+        ],
+    },
+
     { href: "/settings", label: "Settings" },
 ];
 
@@ -127,15 +149,25 @@ export default function AppShell({ children }: { children: ReactNode }) {
                     {/* Navigation */}
                     <nav className="erp-nav">
                         {NAV.map((item) => {
-                            const active = pathname === item.href;
+                            if ("href" in item) {
+                                const active = pathname === item.href;
+
+                                return (
+                                    <Link key={item.href} href={item.href} className="block">
+                                        <div className={["erp-nav-item", active ? "active" : ""].join(" ")}>
+                                            {item.label}
+                                        </div>
+                                    </Link>
+                                );
+                            }
 
                             return (
-                                <Link key={item.href} href={item.href} className="block">
-                                    {/* Use erp-nav-item + active for classic ERP highlight */}
-                                    <div className={["erp-nav-item", active ? "active" : ""].join(" ")}>
-                                        {item.label}
-                                    </div>
-                                </Link>
+                                <NavGroup
+                                    key={item.label}
+                                    label={item.label}
+                                    childrenItems={item.children}
+                                    pathname={pathname || "/"}
+                                />
                             );
                         })}
                     </nav>
