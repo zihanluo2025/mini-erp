@@ -1,8 +1,8 @@
 # Mini ERP System
 
-Online : https://erp.luozihan.space
-Account: admin@example.com
-Password: Admin12345.
+- Online : https://erp.luozihan.space
+- Account: admin@example.com
+- Password: Admin12345.
 
 A modern cloud-based ERP demo system built with ASP.NET Core (.NET 8) and Next.js 14, deployed on AWS (Lambda + API Gateway + Amplify).
 
