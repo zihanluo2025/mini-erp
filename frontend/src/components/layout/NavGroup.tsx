@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ChevronDown } from "lucide-react";
-import Icon from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+
 
 export default function NavGroup({
     label,
@@ -10,7 +11,7 @@ export default function NavGroup({
     pathname,
 }: {
     label: string;
-    icon: unknown;
+    icon: LucideIcon;
     childrenItems: { href: string; label: string }[];
     pathname: string;
 }) {

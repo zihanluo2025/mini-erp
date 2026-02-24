@@ -26,6 +26,7 @@ import {
 import NavGroup from "@/components/layout/NavGroup";
 import { fetchAuthSession } from "aws-amplify/auth";
 import { logout } from "@/lib/auth";
+import type { LucideIcon } from "lucide-react";
 
 
 type UserInfo = {
@@ -34,8 +35,8 @@ type UserInfo = {
     preferred_username?: string;
 };
 type NavItem =
-    | { href: string; label: string; icon: unknown }
-    | { label: string; icon: unknown; children: { href: string; label: string }[] };
+    | { href: string; label: string; icon: LucideIcon }
+    | { label: string; icon: LucideIcon; children: { href: string; label: string }[] };
 
 const NAV: NavItem[] = [
     {
