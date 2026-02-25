@@ -1,6 +1,10 @@
 "use client";
 
-import { startHostedLogin } from "@/lib/auth";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+
+import { startHostedLogin, isSignedIn } from "@/lib/auth";
+
 import { Button } from "@/components/ui/button";
 import {
     Card,
@@ -12,6 +16,18 @@ import {
 
 
 export default function LoginPage() {
+
+    const router = useRouter();
+
+    useEffect(() => {
+        (async () => {
+            if (await isSignedIn()) {
+                router.replace("/dashboard");
+            }
+        })();
+    }, [router]);
+
+
     return (
         <div className="relative min-h-screen overflow-hidden bg-[#070a0f]">
 

@@ -70,9 +70,12 @@ const NAV: NavItem[] = [
         ],
     },
     {
-        href: "/settings",
         label: "Settings",
         icon: Settings,
+        children: [
+            { href: "/settings/users", label: "Users" },
+            { href: "/settings/profile", label: "Profile" },
+        ],
     },
 ];
 
@@ -193,11 +196,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
                                 <DmSep />
 
                                 <DropdownMenuItem asChild>
-                                    <Link href="/account">Profile</Link>
-                                </DropdownMenuItem>
-
-                                <DropdownMenuItem asChild>
-                                    <Link href="/settings">Settings</Link>
+                                    <Link href="/settings/profile">Profile</Link>
                                 </DropdownMenuItem>
 
                                 <DmSep />
