@@ -1,38 +1,55 @@
-import type { ReactNode } from "react";
+import { Boxes, LayoutDashboard, Warehouse, ShoppingCart, Settings } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
-export type NavItem = {
-  title: string;
-  href?: string;
-  icon?: ReactNode;
-  children?: { title: string; href: string }[];
-};
+// Comments in English.
+
+export type Role = "admin";
+
+export type NavItem =
+  | { href: string; label: string; icon: LucideIcon; requiredRole?: Role }
+  | {
+      label: string;
+      icon: LucideIcon;
+      requiredRole?: Role;
+      children: { href: string; label: string; requiredRole?: Role }[];
+    };
 
 export const NAV: NavItem[] = [
-  { title: "Dashboard", href: "/dashboard" },
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+
   {
-    title: "Basic Info",
+    label: "Basic Info",
+    icon: Boxes,
     children: [
-      { title: "Suppliers", href: "/suppliers" },
-      { title: "Customers", href: "/customers" },
-      { title: "Products", href: "/products" },
+      { href: "/products", label: "Products" },
+      { href: "/suppliers", label: "Suppliers" },
+      { href: "/customers", label: "Customers" },
     ],
   },
+
   {
-    title: "Inventory",
+    label: "Inventory",
+    icon: Warehouse,
     children: [
-      { title: "Inbound", href: "/inventory/inbound" },
-      { title: "Returns", href: "/inventory/returns" },
+      { href: "/inventory/inbound", label: "Inbound" },
+      { href: "/inventory/returns", label: "Returns" },
     ],
   },
+
   {
-    title: "Sales",
-    children: [
-      { title: "Sales Orders", href: "/sales/orders" },
-      { title: "Refunds", href: "/sales/refunds" },
-    ],
+    label: "Sales",
+    icon: ShoppingCart,
+    children: [{ href: "/sales/orders", label: "Orders" }],
   },
+
+  // only show settings to admins for now, since it includes user management
   {
-    title: "System",
-    children: [{ title: "Admin Users", href: "/system/admin-users" }],
+    label: "Settings",
+    icon: Settings,
+    requiredRole: "admin",
+    children: [
+      { href: "/settings/users", label: "Users", requiredRole: "admin" },
+      { href: "/settings/profile", label: "Profile", requiredRole: "admin" },
+    ],
   },
 ];

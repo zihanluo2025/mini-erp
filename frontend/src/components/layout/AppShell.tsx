@@ -5,13 +5,12 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import {
-    LayoutDashboard,
-    Boxes,
-    Warehouse,
-    ShoppingCart,
-    Settings
-} from "lucide-react";
+
+import { NAV } from "@/lib/nav";
+import type { NavItem } from "@/lib/nav";
+import { isAdmin as checkIsAdmin } from "@/lib/authz";
+
+
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -26,7 +25,7 @@ import {
 import NavGroup from "@/components/layout/NavGroup";
 import { fetchAuthSession } from "aws-amplify/auth";
 import { logout } from "@/lib/auth";
-import type { LucideIcon } from "lucide-react";
+
 
 
 type UserInfo = {
@@ -34,50 +33,23 @@ type UserInfo = {
     name?: string;
     preferred_username?: string;
 };
-type NavItem =
-    | { href: string; label: string; icon: LucideIcon }
-    | { label: string; icon: LucideIcon; children: { href: string; label: string }[] };
 
-const NAV: NavItem[] = [
-    {
-        href: "/dashboard",
-        label: "Dashboard",
-        icon: LayoutDashboard,
-    },
-    {
-        label: "Basic Info",
-        icon: Boxes,
-        children: [
-            { href: "/products", label: "Products" },
-            { href: "/suppliers", label: "Suppliers" },
-            { href: "/customers", label: "Customers" },
-        ],
-    },
-    {
-        label: "Inventory",
-        icon: Warehouse,
-        children: [
-            { href: "/inventory/inbound", label: "Inbound" },
-            { href: "/inventory/returns", label: "Returns" },
-        ],
-    },
-    {
-        label: "Sales",
-        icon: ShoppingCart,
-        children: [
-            { href: "/sales/orders", label: "Orders" },
-            //   { href: "/sales/refunds", label: "Refunds" },
-        ],
-    },
-    {
-        label: "Settings",
-        icon: Settings,
-        children: [
-            { href: "/settings/users", label: "Users" },
-            { href: "/settings/profile", label: "Profile" },
-        ],
-    },
-];
+
+function filterNav(items: NavItem[], isAdmin: boolean): NavItem[] {
+    return items
+        .filter((item) => (item.requiredRole === "admin" ? isAdmin : true))
+        .map((item) => {
+            if ("children" in item) {
+                const children = item.children.filter((c) => (c.requiredRole === "admin" ? isAdmin : true));
+                return { ...item, children };
+            }
+            return item;
+        })
+        .filter((item) => !("children" in item) || item.children.length > 0);
+}
+
+
+
 
 function getInitials(email?: string, name?: string) {
     const base = (name || email || "U").trim();
@@ -95,6 +67,14 @@ function getHeaderTitle(pathname: string) {
 export default function AppShell({ children }: { children: ReactNode }) {
     const pathname = usePathname();
     const [user, setUser] = useState<UserInfo | null>(null);
+
+    const [isAdmin, setIsAdmin] = useState(false);
+    const nav = useMemo(() => filterNav(NAV, isAdmin), [isAdmin]);
+
+    useEffect(() => {
+        checkIsAdmin().then(setIsAdmin);
+    }, []);
+
 
     useEffect(() => {
         let mounted = true;
@@ -122,9 +102,9 @@ export default function AppShell({ children }: { children: ReactNode }) {
         };
     }, []);
 
-    const displayName = useMemo(() => {
-        return user?.preferred_username || user?.name || user?.email || "User";
-    }, [user]);
+    // const displayName = useMemo(() => {
+    //     return user?.preferred_username || user?.name || user?.email || "User";
+    // }, [user]);
 
     const headerTitle = useMemo(() => getHeaderTitle(pathname || "/"), [pathname]);
 
@@ -136,7 +116,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
                     <div className="erp-brand">Mini ERP</div>
 
                     <nav className="erp-nav">
-                        {NAV.map((item) => {
+                        {nav.map((item) => {
                             if ("href" in item) {
                                 const active =
                                     pathname === item.href ||

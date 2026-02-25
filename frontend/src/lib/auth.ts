@@ -55,6 +55,7 @@ function decodeJwtPayload(token: string): Record<string, unknown> | null {
   }
 }
 
+
 export async function isSignedIn(): Promise<boolean> {
   try {
     const session = await fetchAuthSession({ forceRefresh: true });
@@ -106,4 +107,13 @@ export async function waitForToken(maxMs = 4000): Promise<string | null> {
     await new Promise((r) => setTimeout(r, 200));
   }
   return null;
+}
+
+export async function getIdToken(): Promise<string | null> {
+  try {
+    const session = await fetchAuthSession({ forceRefresh: true });
+    return session.tokens?.idToken?.toString() ?? null;
+  } catch {
+    return null;
+  }
 }
