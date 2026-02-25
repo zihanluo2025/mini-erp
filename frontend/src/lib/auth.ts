@@ -34,10 +34,11 @@ Amplify.configure({
   },
 });
 
-function decodeJwtPayload(token: string): unknown | null {
+function decodeJwtPayload(token: string): Record<string, unknown> | null {
   try {
     const parts = token.split(".");
     if (parts.length < 2) return null;
+
     const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
     const json = decodeURIComponent(
       atob(base64)
@@ -45,7 +46,10 @@ function decodeJwtPayload(token: string): unknown | null {
         .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
         .join("")
     );
-    return JSON.parse(json);
+
+    const obj = JSON.parse(json);
+    if (obj && typeof obj === "object") return obj as Record<string, unknown>;
+    return null;
   } catch {
     return null;
   }
@@ -53,19 +57,17 @@ function decodeJwtPayload(token: string): unknown | null {
 
 export async function isSignedIn(): Promise<boolean> {
   try {
-
     const session = await fetchAuthSession({ forceRefresh: true });
     const idToken = session.tokens?.idToken?.toString();
     if (!idToken) return false;
 
-   
     const payload = decodeJwtPayload(idToken);
     const exp = payload?.exp;
+
     if (typeof exp !== "number") return false;
 
     const nowSec = Math.floor(Date.now() / 1000);
-
-    return exp > nowSec + 30;
+    return exp > nowSec + 30; // 30s buffer
   } catch {
     return false;
   }
