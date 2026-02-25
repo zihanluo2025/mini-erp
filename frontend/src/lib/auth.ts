@@ -8,7 +8,6 @@ import {
 const userPoolId = process.env.NEXT_PUBLIC_COGNITO_USER_POOL_ID!;
 const userPoolClientId = process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID!;
 
-// remove protocol prefix, Amplify needs just the domain part
 const domain = process.env.NEXT_PUBLIC_COGNITO_DOMAIN!.replace(
   /^https?:\/\//,
   ""
@@ -35,65 +34,68 @@ Amplify.configure({
   },
 });
 
-/**
- * Check if there is a valid signed-in session.
- * If tokens exist, user is considered signed in.
- */
+function decodeJwtPayload(token: string): unknown | null {
+  try {
+    const parts = token.split(".");
+    if (parts.length < 2) return null;
+    const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const json = decodeURIComponent(
+      atob(base64)
+        .split("")
+        .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+        .join("")
+    );
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
+}
+
 export async function isSignedIn(): Promise<boolean> {
   try {
-    const session = await fetchAuthSession();
-    return !!session.tokens?.idToken;
+
+    const session = await fetchAuthSession({ forceRefresh: true });
+    const idToken = session.tokens?.idToken?.toString();
+    if (!idToken) return false;
+
+   
+    const payload = decodeJwtPayload(idToken);
+    const exp = payload?.exp;
+    if (typeof exp !== "number") return false;
+
+    const nowSec = Math.floor(Date.now() / 1000);
+
+    return exp > nowSec + 30;
   } catch {
     return false;
   }
 }
 
-/**
- * Start Cognito Hosted UI login.
- * IMPORTANT: Avoid calling redirect login when user is already signed in,
- * otherwise Amplify may throw UserAlreadyAuthenticatedException.
- */
 export async function startHostedLogin(options?: { redirectTo?: string }) {
   const signedIn = await isSignedIn();
-
-  // Already signed in → go directly to app, no redirect login
   if (signedIn) {
     window.location.href = options?.redirectTo ?? "/dashboard";
     return;
   }
 
-  // Not signed in → start hosted UI
+
   await signInWithRedirect();
 }
 
-/**
- * Sign out user.
- * - Clear app cookie (if you use it for your own session marker)
- * - Use global signOut to clear Cognito-side session too (cleaner re-login UX)
- */
 export async function logout() {
-  // clean up cookie to prevent Amplify from trying to refresh the session with an expired token
   document.cookie = "erp_auth=; path=/; max-age=0";
-
-  // global: true clears the Cognito session as well
   await signOut({ global: true });
 }
 
-/**
- * Get access token for calling backend APIs.
- */
 export async function getAccessToken(): Promise<string | null> {
   try {
-    const session = await fetchAuthSession();
+    const session = await fetchAuthSession({ forceRefresh: true });
     return session.tokens?.accessToken?.toString() ?? null;
   } catch {
     return null;
   }
 }
 
-/**
- * Wait for token to appear (e.g., right after redirect callback).
- */
 export async function waitForToken(maxMs = 4000): Promise<string | null> {
   const start = Date.now();
   while (Date.now() - start < maxMs) {
