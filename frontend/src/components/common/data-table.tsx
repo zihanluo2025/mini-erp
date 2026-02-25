@@ -1,5 +1,7 @@
 "use client";
 
+// Comments in English.
+
 import * as React from "react";
 import {
     ColumnDef,
@@ -21,6 +23,14 @@ import {
     TableRow,
 } from "@/components/ui/table";
 
+type DataTableAction = {
+    key: string;
+    label: string;
+    variant?: "default" | "secondary" | "destructive" | "outline";
+    onClick: () => void;
+    disabled?: boolean;
+};
+
 type DataTableProps<TData, TValue> = {
     columns: ColumnDef<TData, TValue>[];
     data: TData[];
@@ -28,40 +38,60 @@ type DataTableProps<TData, TValue> = {
     // Selection
     enableRowSelection?: boolean;
     rowSelection?: RowSelectionState;
-    onRowSelectionChange?: (updater: RowSelectionState) => void;
+    onRowSelectionChange?: (next: RowSelectionState) => void;
 
     // Paging (controlled)
     pageIndex: number;
     pageSize: number;
-    pageCount: number; // total pages
+    pageCount: number;
+    totalCount?: number;
     onPageChange: (nextPageIndex: number) => void;
     onPageSizeChange: (nextPageSize: number) => void;
 
     // UI state
     loading?: boolean;
     emptyText?: string;
+
+    // ✅ New: Table action buttons shown above the table
+    actions?: DataTableAction[];
 };
+
+function getPageWindow(pageIndex: number, pageCount: number) {
+    const max = 5;
+    if (pageCount <= max) return Array.from({ length: pageCount }, (_, i) => i);
+    const start = Math.max(0, Math.min(pageIndex - 2, pageCount - max));
+    return Array.from({ length: max }, (_, i) => start + i);
+}
 
 export function DataTable<TData, TValue>({
     columns,
     data,
+
     enableRowSelection = true,
     rowSelection,
     onRowSelectionChange,
+
     pageIndex,
     pageSize,
     pageCount,
+    totalCount,
     onPageChange,
     onPageSizeChange,
+
     loading,
     emptyText = "No data",
+
+    actions = [],
 }: DataTableProps<TData, TValue>) {
     const selectionColumn: ColumnDef<TData, TValue> = {
         id: "__select",
         header: ({ table }) => (
             <div className="flex items-center justify-center">
                 <Checkbox
-                    checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && "indeterminate")}
+                    checked={
+                        table.getIsAllPageRowsSelected() ||
+                        (table.getIsSomePageRowsSelected() && "indeterminate")
+                    }
                     onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
                     aria-label="Select all"
                 />
@@ -83,7 +113,6 @@ export function DataTable<TData, TValue>({
 
     const finalColumns = React.useMemo(() => {
         if (!enableRowSelection) return columns;
-        // Put selection column at first
         return [selectionColumn as ColumnDef<TData, TValue>, ...columns];
     }, [columns, enableRowSelection]);
 
@@ -110,20 +139,54 @@ export function DataTable<TData, TValue>({
         enableRowSelection,
     });
 
+    const selectedCount = enableRowSelection
+        ? table.getSelectedRowModel().rows.length
+        : 0;
+
     const canPrev = pageIndex > 0;
     const canNext = pageIndex < pageCount - 1;
+    const pageNums = React.useMemo(
+        () => getPageWindow(pageIndex, pageCount),
+        [pageIndex, pageCount]
+    );
 
     return (
         <div className="rounded-xl border bg-white">
             <div className="p-3">
+                {/* Action bar INSIDE table component */}
+                {actions.length ? (
+                    <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex flex-wrap gap-2">
+                            {actions.map((a) => (
+                                <Button
+                                    key={a.key}
+                                    variant={a.variant ?? "default"}
+                                    onClick={a.onClick}
+                                    disabled={a.disabled}
+                                >
+                                    {a.label}
+                                </Button>
+                            ))}
+                        </div>
+
+                        {enableRowSelection ? (
+                            <div className="text-sm text-muted-foreground">
+                                Selected: {selectedCount}
+                            </div>
+                        ) : null}
+                    </div>
+                ) : null}
+
                 <div className="overflow-x-auto rounded-lg border">
                     <Table>
                         <TableHeader>
                             {table.getHeaderGroups().map((hg) => (
-                                <TableRow key={hg.id}>
+                                <TableRow key={hg.id} className="bg-muted/30">
                                     {hg.headers.map((h) => (
-                                        <TableHead key={h.id} style={{ width: h.getSize() }}>
-                                            {h.isPlaceholder ? null : flexRender(h.column.columnDef.header, h.getContext())}
+                                        <TableHead key={h.id} className="text-sm font-medium">
+                                            {h.isPlaceholder
+                                                ? null
+                                                : flexRender(h.column.columnDef.header, h.getContext())}
                                         </TableHead>
                                     ))}
                                 </TableRow>
@@ -138,10 +201,14 @@ export function DataTable<TData, TValue>({
                                     </TableCell>
                                 </TableRow>
                             ) : table.getRowModel().rows?.length ? (
-                                table.getRowModel().rows.map((row) => (
-                                    <TableRow key={row.id} data-state={row.getIsSelected() ? "selected" : undefined}>
+                                table.getRowModel().rows.map((row, idx) => (
+                                    <TableRow
+                                        key={row.id}
+                                        data-state={row.getIsSelected() ? "selected" : undefined}
+                                        className={["hover:bg-muted/30", idx % 2 === 1 ? "bg-muted/10" : ""].join(" ")}
+                                    >
                                         {row.getVisibleCells().map((cell) => (
-                                            <TableCell key={cell.id}>
+                                            <TableCell key={cell.id} className="text-sm">
                                                 {flexRender(cell.column.columnDef.cell, cell.getContext())}
                                             </TableCell>
                                         ))}
@@ -159,28 +226,33 @@ export function DataTable<TData, TValue>({
                 </div>
 
                 {/* Pagination */}
-                <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="text-sm text-muted-foreground">
-                        Page <span className="font-medium">{pageIndex + 1}</span> of{" "}
-                        <span className="font-medium">{pageCount}</span>
+                        {typeof totalCount === "number" ? `Total ${totalCount} ` : null}
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
-                        <Button variant="outline" size="sm" onClick={() => onPageChange(0)} disabled={!canPrev}>
-                            First
-                        </Button>
                         <Button variant="outline" size="sm" onClick={() => onPageChange(pageIndex - 1)} disabled={!canPrev}>
-                            Prev
+                            {"<"}
                         </Button>
+
+                        {pageNums.map((p) => (
+                            <Button
+                                key={p}
+                                variant={p === pageIndex ? "default" : "outline"}
+                                size="sm"
+                                onClick={() => onPageChange(p)}
+                            >
+                                {p + 1}
+                            </Button>
+                        ))}
+
                         <Button variant="outline" size="sm" onClick={() => onPageChange(pageIndex + 1)} disabled={!canNext}>
-                            Next
-                        </Button>
-                        <Button variant="outline" size="sm" onClick={() => onPageChange(pageCount - 1)} disabled={!canNext}>
-                            Last
+                            {">"}
                         </Button>
 
                         <div className="ml-2 flex items-center gap-2">
-                            <span className="text-sm text-muted-foreground">Rows</span>
+                            <span className="text-sm text-muted-foreground">pageSize</span>
                             <select
                                 className="h-8 rounded-md border bg-white px-2 text-sm"
                                 value={pageSize}

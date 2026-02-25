@@ -194,7 +194,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
                     </header>
 
                     <div className="erp-content">
-                        <div className="p-6">{children}</div>
+                        <div className="p-2">{children}</div>
                     </div>
                 </main>
             </div>

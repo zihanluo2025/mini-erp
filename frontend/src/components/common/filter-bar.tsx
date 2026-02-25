@@ -1,5 +1,7 @@
 "use client";
 
+// Comments in English.
+
 import * as React from "react";
 import { Button } from "@/components/ui/button";
 
@@ -12,26 +14,36 @@ type FilterBarAction = {
 };
 
 type FilterBarProps = {
-    title?: React.ReactNode; // e.g., breadcrumb area or page title
-    fields: React.ReactNode; // filter inputs
-    actions?: FilterBarAction[]; // right side buttons
+    title?: React.ReactNode;
+
+    // Left side filter inputs
+    fields: React.ReactNode;
+
+    // Right side buttons on the same row (e.g. Query/Reset)
+    primaryActions?: FilterBarAction[];
+
+
     className?: string;
 };
 
-export function FilterBar({ title, fields, actions = [], className }: FilterBarProps) {
+export function FilterBar({
+    title,
+    fields,
+    primaryActions = [],
+    className,
+}: FilterBarProps) {
     return (
         <div className={["w-full", className].filter(Boolean).join(" ")}>
             {title ? <div className="mb-3">{title}</div> : null}
 
             <div className="rounded-xl border bg-white p-4">
-                <div className="flex flex-col gap-3">
-                    {/* Filters row */}
+                {/* Row 1: Filters + Query/Reset */}
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
                     <div className="flex flex-wrap items-end gap-3">{fields}</div>
 
-                    {/* Actions row */}
-                    {actions.length ? (
-                        <div className="flex flex-wrap gap-2">
-                            {actions.map((a) => (
+                    {primaryActions.length ? (
+                        <div className="flex flex-wrap gap-2 lg:justify-end">
+                            {primaryActions.map((a) => (
                                 <Button
                                     key={a.key}
                                     variant={a.variant ?? "default"}
