@@ -1,10 +1,13 @@
 using MiniErp.Application.Abstractions;
 using MiniErp.Application.Products;
+using MiniErp.Application.Users;
 using MiniErp.Domain.Auth;
 using MiniErp.Infrastructure.Common;
 using MiniErp.Infrastructure.Products;
+using MiniErp.Infrastructure.Users;
 using Amazon.DynamoDBv2;
 using Amazon.Lambda.AspNetCoreServer.Hosting;
+using Amazon.CognitoIdentityProvider;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -37,6 +40,10 @@ else
 {
     builder.Services.AddSingleton<IProductRepository, InMemoryProductRepository>();
 }
+
+// Cognito user directory
+builder.Services.AddAWSService<IAmazonCognitoIdentityProvider>();
+builder.Services.AddSingleton<IUserDirectory, CognitoUserDirectory>();
 
 builder.Services.AddScoped<ProductService>();
 
@@ -97,6 +104,46 @@ app.MapDelete("/products/{id}", async (
     CancellationToken ct) =>
 {
     await svc.SoftDeleteAsync(id, ct);
+    return Results.NoContent();
+});
+
+// Users (Cognito-backed)
+app.MapGet("/users", async (
+    string? keyword,
+    int? limit,
+    string? cursor,
+    IUserDirectory users,
+    CancellationToken ct) =>
+{
+    var page = await users.ListAsync(keyword, limit ?? 50, cursor, ct);
+    return Results.Ok(new { items = page.Items, nextCursor = page.NextCursor });
+});
+
+app.MapPost("/users", async (
+    CreateUserRequest req,
+    IUserDirectory users,
+    CancellationToken ct) =>
+{
+    var id = await users.CreateAsync(req, ct);
+    return Results.Created($"/users/{id}", new { id });
+});
+
+app.MapPut("/users/{id}", async (
+    string id,
+    UpdateUserRequest req,
+    IUserDirectory users,
+    CancellationToken ct) =>
+{
+    await users.UpdateAsync(id, req, ct);
+    return Results.NoContent();
+});
+
+app.MapDelete("/users/{id}", async (
+    string id,
+    IUserDirectory users,
+    CancellationToken ct) =>
+{
+    await users.DeleteAsync(id, ct);
     return Results.NoContent();
 });
 
