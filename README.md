@@ -85,7 +85,7 @@ This project was built to demonstrate:
 - DevOps workflow understanding
 
 # Future Improvements
-- Role-based access control
+- Role-based access control(API)
 - Order workflow logic
 - Inventory alert automation
 - CI/CD with GitHub Actions
