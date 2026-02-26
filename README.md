@@ -1,4 +1,4 @@
-# Mini ERP System
+# Purchase and sales management system
 
 - Online : https://erp.luozihan.space
 - Account: admin@example.com
