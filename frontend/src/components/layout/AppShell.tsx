@@ -82,7 +82,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
         (async () => {
             try {
                 const session = await fetchAuthSession();
-                const claims = session.tokens?.idToken?.payload as any;
+                const claims = session.tokens?.idToken?.payload as { email?: string; name?: string; preferred_username?: string } | undefined;
 
                 if (!mounted) return;
 

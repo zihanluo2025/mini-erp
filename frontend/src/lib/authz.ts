@@ -11,7 +11,7 @@ function base64UrlDecode(input: string) {
   return atob(base64 + pad);
 }
 
-function decodeJwtPayload(token: string): any {
+function decodeJwtPayload(token: string): Record<string, unknown> | null {
   const parts = token.split(".");
   if (parts.length < 2) return null;
   return JSON.parse(base64UrlDecode(parts[1]));

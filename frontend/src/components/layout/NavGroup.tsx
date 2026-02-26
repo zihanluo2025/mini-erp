@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { ChevronDown } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -19,17 +19,14 @@ export default function NavGroup({
         (c) => pathname === c.href || pathname.startsWith(c.href + "/")
     );
 
-    const [open, setOpen] = useState<boolean>(childActive);
-
-    useEffect(() => {
-        if (childActive) setOpen(true);
-    }, [childActive]);
+    const [userOpened, setUserOpened] = useState<boolean>(false);
+    const open = childActive || userOpened;
 
     return (
         <div>
             <button
                 type="button"
-                onClick={() => setOpen((v) => !v)}
+                onClick={() => setUserOpened((v) => !v)}
                 className="w-full text-left"
             >
                 <div className="erp-nav-item erp-nav-parent flex items-center justify-between">

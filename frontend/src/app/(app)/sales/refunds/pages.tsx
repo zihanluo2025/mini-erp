@@ -118,7 +118,7 @@ export default function RefundsPage() {
     }, [filteredRows, pageIndex, pageSize]);
 
     // Selected row ids (TanStack uses row index keys, not your id)
-    const selectedRowIndexes = Object.keys(rowSelection).filter((k) => (rowSelection as any)[k]);
+    const selectedRowIndexes = Object.keys(rowSelection).filter((k) => (rowSelection as Record<string, boolean>)[k]);
     const hasSelected = selectedRowIndexes.length > 0;
 
     function handleSearch() {

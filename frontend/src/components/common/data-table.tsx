@@ -83,39 +83,39 @@ export function DataTable<TData, TValue>({
 
     actions = [],
 }: DataTableProps<TData, TValue>) {
-    const selectionColumn: ColumnDef<TData, TValue> = {
-        id: "__select",
-        header: ({ table }) => (
-            <div className="flex items-center justify-center">
-                <Checkbox
-                    checked={
-                        table.getIsAllPageRowsSelected() ||
-                        (table.getIsSomePageRowsSelected() && "indeterminate")
-                    }
-                    onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-                    aria-label="Select all"
-                />
-            </div>
-        ),
-        cell: ({ row }) => (
-            <div className="flex items-center justify-center">
-                <Checkbox
-                    checked={row.getIsSelected()}
-                    onCheckedChange={(value) => row.toggleSelected(!!value)}
-                    aria-label="Select row"
-                />
-            </div>
-        ),
-        size: 48,
-        enableSorting: false,
-        enableHiding: false,
-    };
-
     const finalColumns = React.useMemo(() => {
         if (!enableRowSelection) return columns;
-        return [selectionColumn as ColumnDef<TData, TValue>, ...columns];
+        const selectionColumn: ColumnDef<TData, TValue> = {
+            id: "__select",
+            header: ({ table }) => (
+                <div className="flex items-center justify-center">
+                    <Checkbox
+                        checked={
+                            table.getIsAllPageRowsSelected() ||
+                            (table.getIsSomePageRowsSelected() && "indeterminate")
+                        }
+                        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+                        aria-label="Select all"
+                    />
+                </div>
+            ),
+            cell: ({ row }) => (
+                <div className="flex items-center justify-center">
+                    <Checkbox
+                        checked={row.getIsSelected()}
+                        onCheckedChange={(value) => row.toggleSelected(!!value)}
+                        aria-label="Select row"
+                    />
+                </div>
+            ),
+            size: 48,
+            enableSorting: false,
+            enableHiding: false,
+        };
+        return [selectionColumn, ...columns];
     }, [columns, enableRowSelection]);
 
+    // eslint-disable-next-line react-hooks/incompatible-library -- TanStack Table API returns non-memoizable functions
     const table = useReactTable({
         data,
         columns: finalColumns,
@@ -127,7 +127,7 @@ export function DataTable<TData, TValue>({
             ? (updater) => {
                 const next =
                     typeof updater === "function"
-                        ? (updater as any)(rowSelection ?? {})
+                        ? (updater as (prev: RowSelectionState) => RowSelectionState)(rowSelection ?? {})
                         : updater;
                 onRowSelectionChange?.(next);
             }
