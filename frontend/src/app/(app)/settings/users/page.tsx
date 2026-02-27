@@ -231,7 +231,7 @@ export default function UsersPage() {
   }, [rows, pageIndex, pageSize]);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-2">
 
       <FilterBar
         fields={
@@ -287,7 +287,7 @@ export default function UsersPage() {
           />
         </div>
 
-        <div className="flex gap-2 md:justify-end">
+        <div className="md:col-span-2 flex w-full justify-end gap-2">
           <Button
             type="button"
             variant="outline"
