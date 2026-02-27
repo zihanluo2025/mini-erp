@@ -12,10 +12,10 @@ This project demonstrates full-stack engineering capability including backend AP
 
 Detailed documentation is maintained in Notion:
 
-- 📘 Software Requirements Specification  
-- 🏗 Architecture Design  
-- 🗓 Development Roadmap  
-- 🔐 Identity & Security Design  
+- Software Requirements Specification  
+- Architecture Design  
+- Development Roadmap  
+- Identity & Security Design  
 
 
 # Architecture Overview
