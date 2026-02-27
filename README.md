@@ -26,6 +26,10 @@ This project demonstrates full-stack engineering capability including backend AP
 
 
 <img width="2880" height="1558" alt="image" src="https://github.com/user-attachments/assets/e20a8d33-edc9-48a6-8c39-b06be02ad149" />
+<img width="2880" height="1558" alt="image" src="https://github.com/user-attachments/assets/a1e36ef4-0998-488e-b877-78121440f66b" />
+<img width="2240" height="1006" alt="image" src="https://github.com/user-attachments/assets/8cdc08cb-ddb1-4e16-bfc3-77cf1b752007" />
+
+
 
 
 
@@ -62,7 +66,7 @@ This project demonstrates full-stack engineering capability including backend AP
 - Secure session management
 - Role-based UI access
 
-## Identity & User Management
+## Identity and User Management
 - Platform ↔ Cognito user synchronization
   - Create / update / enable-disable / delete users via Cognito Admin APIs
   - User listing backed by Cognito (pagination supported)
