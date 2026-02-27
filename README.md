@@ -8,6 +8,15 @@ A modern cloud-based ERP demo system built with ASP.NET Core (.NET 8) and Next.j
 
 This project demonstrates full-stack engineering capability including backend API design, frontend UI architecture, cloud deployment, and DevOps automation.
 
+## Documentation
+
+Detailed documentation is maintained in Notion:
+
+- 📘 Software Requirements Specification  
+- 🏗 Architecture Design  
+- 🗓 Development Roadmap  
+- 🔐 Identity & Security Design  
+
 
 # Architecture Overview
 <img width="1536" height="1024" alt="image" src="https://github.com/user-attachments/assets/d96302d1-c047-4f21-869a-b451ac145bf0" />
