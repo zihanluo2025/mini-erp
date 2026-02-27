@@ -62,6 +62,12 @@ This project demonstrates full-stack engineering capability including backend AP
 - Secure session management
 - Role-based UI access
 
+## Identity & User Management
+- Platform ↔ Cognito user synchronization
+  - Create / update / enable-disable / delete users via Cognito Admin APIs
+  - User listing backed by Cognito (pagination supported)
+  - IAM role-based secure access from Lambda to Cognito
+
 
 # Project Structure
  ```bash
