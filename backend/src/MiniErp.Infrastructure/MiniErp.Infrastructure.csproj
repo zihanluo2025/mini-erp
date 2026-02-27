@@ -8,6 +8,8 @@
   <ItemGroup>
     <PackageReference Include="AWSSDK.DynamoDBv2" Version="4.0.14.1" />
     <PackageReference Include="AWSSDK.CognitoIdentityProvider" Version="4.0.4.10" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="8.0.0" />
+
   </ItemGroup>
 
   <PropertyGroup>

@@ -163,7 +163,7 @@ public sealed class CognitoUserDirectory : IUserDirectory
             Id: user.Username,
             Email: email,
             Name: string.IsNullOrWhiteSpace(name) ? null : name,
-            Enabled: user.Enabled,
+            Enabled: user.Enabled ?? false,
             Status: user.UserStatus?.Value ?? "UNKNOWN",
             CreatedAt: createdAt);
     }
