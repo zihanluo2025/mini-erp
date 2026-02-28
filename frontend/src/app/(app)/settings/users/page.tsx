@@ -28,60 +28,6 @@ import {
 
 type UserRow = User;
 
-const columns: ColumnDef<UserRow>[] = [
-  {
-    accessorKey: "email",
-    header: "Email",
-  },
-  {
-    accessorKey: "name",
-    header: "Name",
-  },
-  {
-    accessorKey: "status",
-    header: "Status",
-    cell: ({ row }) =>
-      row.original.enabled ? (
-        <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
-          Active
-        </Badge>
-      ) : (
-        <Badge variant="secondary">Disabled</Badge>
-      ),
-  },
-  {
-    accessorKey: "createdAt",
-    header: "Created At",
-    cell: ({ row }) => (
-      <span className="tabular-nums text-muted-foreground">
-        {new Date(row.original.createdAt).toLocaleString()}
-      </span>
-    ),
-  },
-  {
-    id: "actions",
-    header: "Actions",
-    cell: ({ row }) => (
-      <div className="flex gap-2 justify-end">
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={row.original.onEdit}
-        >
-          Edit
-        </Button>
-        <Button
-          size="sm"
-          variant="destructive"
-          onClick={row.original.onDelete}
-        >
-          Delete
-        </Button>
-      </div>
-    ),
-  },
-];
-
 export default function UsersPage() {
   const [keyword, setKeyword] = React.useState("");
 
@@ -109,43 +55,39 @@ export default function UsersPage() {
     [rowSelection]
   );
 
-  async function loadUsers(search?: string) {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await listUsers(search);
-      setRows(
-        data.map((u) => ({
-          ...u,
-          onEdit: () => openEdit(u),
-          onDelete: () => handleDelete(u),
-        }))
-      );
-    } catch (e) {
-      setError(
-        e instanceof Error ? e.message : "Failed to load users from server."
-      );
-    } finally {
-      setLoading(false);
-    }
-  }
+  const loadUsers = React.useCallback(
+    async (search?: string) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const data = await listUsers(search);
+        setRows(data); // ✅ keep row data clean (no handlers injected)
+      } catch (e) {
+        setError(
+          e instanceof Error ? e.message : "Failed to load users from server."
+        );
+      } finally {
+        setLoading(false);
+      }
+    },
+    []
+  );
 
   React.useEffect(() => {
     void loadUsers();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [loadUsers]);
 
-  function openEdit(user: User) {
+  const openEdit = React.useCallback((user: User) => {
     setEditingUser(user);
     setEditName(user.name ?? "");
     setEditEnabled(user.enabled);
-  }
+  }, []);
 
-  function resetCreateForm() {
+  const resetCreateForm = React.useCallback(() => {
     setNewEmail("");
     setNewName("");
     setNewTempPassword("");
-  }
+  }, []);
 
   async function handleSearch() {
     setPageIndex(0);
@@ -201,23 +143,84 @@ export default function UsersPage() {
     }
   }
 
-  async function handleDelete(user: User) {
-    if (!window.confirm(`Delete user ${user.email}?`)) return;
-    setLoading(true);
-    setError(null);
-    try {
-      await deleteUser(user.id);
-      await loadUsers(keyword);
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to delete user in Cognito."
-      );
-    } finally {
-      setLoading(false);
-    }
-  }
+  const handleDelete = React.useCallback(
+    async (user: User) => {
+      if (!window.confirm(`Delete user ${user.email}?`)) return;
+      setLoading(true);
+      setError(null);
+      try {
+        await deleteUser(user.id);
+        await loadUsers(keyword);
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : "Failed to delete user in Cognito."
+        );
+      } finally {
+        setLoading(false);
+      }
+    },
+    [keyword, loadUsers]
+  );
 
-  // Client-side paging based on rows loaded from Cognito.
+  // ✅ columns live inside component so they can call openEdit/handleDelete
+  const columns = React.useMemo<ColumnDef<UserRow>[]>(
+    () => [
+      {
+        accessorKey: "email",
+        header: "Email",
+      },
+      {
+        accessorKey: "name",
+        header: "Name",
+      },
+      {
+        accessorKey: "status",
+        header: "Status",
+        cell: ({ row }) =>
+          row.original.enabled ? (
+            <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
+              Active
+            </Badge>
+          ) : (
+            <Badge variant="secondary">Disabled</Badge>
+          ),
+      },
+      {
+        accessorKey: "createdAt",
+        header: "Created At",
+        cell: ({ row }) => (
+          <span className="tabular-nums text-muted-foreground">
+            {new Date(row.original.createdAt).toLocaleString()}
+          </span>
+        ),
+      },
+      {
+        id: "actions",
+        header: "Actions",
+        cell: ({ row }) => (
+          <div className="flex gap-2 justify-end">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => openEdit(row.original)}
+            >
+              Edit
+            </Button>
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={() => void handleDelete(row.original)}
+            >
+              Delete
+            </Button>
+          </div>
+        ),
+      },
+    ],
+    [openEdit, handleDelete]
+  );
+
+  // Client-side paging
   const totalCount = rows.length;
   const pageCount = Math.max(1, Math.ceil(totalCount / pageSize));
 
@@ -232,7 +235,6 @@ export default function UsersPage() {
 
   return (
     <div className="space-y-2">
-
       <FilterBar
         fields={
           <Input
@@ -277,6 +279,7 @@ export default function UsersPage() {
             onChange={(e) => setNewEmail(e.target.value)}
           />
         </div>
+
         <div className="space-y-1.5">
           <Label htmlFor="new-name">Name</Label>
           <Input
@@ -287,6 +290,7 @@ export default function UsersPage() {
           />
         </div>
 
+        {/* Keep as-is; you can add Temp Password field later if needed */}
         <div className="md:col-span-2 flex w-full justify-end gap-2">
           <Button
             type="button"
@@ -336,24 +340,28 @@ export default function UsersPage() {
             label: "Batch Delete",
             variant: "destructive",
             onClick: () => {
-              // For now, rely on per-row delete to keep behaviour explicit.
-              // Could be extended to batch delete via rowSelection.
+              // TODO: implement using rowSelection + your table row ids
             },
             disabled: !hasSelected,
           },
         ]}
       />
 
-      <Dialog open={!!editingUser} onOpenChange={(open) => !open && setEditingUser(null)}>
+      <Dialog
+        open={!!editingUser}
+        onOpenChange={(open) => !open && setEditingUser(null)}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Edit user</DialogTitle>
           </DialogHeader>
+
           <div className="space-y-4">
             <div className="space-y-1.5">
               <Label>Email</Label>
               <Input value={editingUser?.email ?? ""} disabled />
             </div>
+
             <div className="space-y-1.5">
               <Label htmlFor="edit-name">Name</Label>
               <Input
@@ -362,6 +370,7 @@ export default function UsersPage() {
                 onChange={(e) => setEditName(e.target.value)}
               />
             </div>
+
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
                 <Label htmlFor="edit-enabled">Active</Label>
@@ -376,6 +385,7 @@ export default function UsersPage() {
               />
             </div>
           </div>
+
           <DialogFooter>
             <Button
               type="button"
