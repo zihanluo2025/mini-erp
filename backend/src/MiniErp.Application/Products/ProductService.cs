@@ -3,7 +3,7 @@ using MiniErp.Application.Products.Models;
 
 namespace MiniErp.Application.Products;
 
-
+// Comments in English.
 public sealed class ProductService
 {
     private readonly IProductRepository _repo;
@@ -19,9 +19,15 @@ public sealed class ProductService
 
     public async Task<string> CreateAsync(CreateProductRequest req, CancellationToken ct)
     {
-        // 基础校验（后续可引入 FluentValidation）
-        if (string.IsNullOrWhiteSpace(req.Name)) throw new ArgumentException("Name is required");
-        if (string.IsNullOrWhiteSpace(req.Sku)) throw new ArgumentException("Sku is required");
+        // Basic validation
+        if (string.IsNullOrWhiteSpace(req.Name))
+            throw new ArgumentException("Name is required");
+
+        if (req.Price < 0)
+            throw new ArgumentException("Price must be >= 0");
+
+        if (req.Stock < 0)
+            throw new ArgumentException("Stock must be >= 0");
 
         var id = Guid.NewGuid().ToString("N");
         var now = _clock.UtcNow;
@@ -29,10 +35,11 @@ public sealed class ProductService
         var dto = new ProductDto(
             Id: id,
             Name: req.Name.Trim(),
-            Sku: req.Sku.Trim(),
-            Category: req.Category?.Trim() ?? "",
-            UnitPrice: req.UnitPrice,
-            StockWarningThreshold: req.StockWarningThreshold,
+            Supplier: string.IsNullOrWhiteSpace(req.Supplier) ? null : req.Supplier.Trim(),
+            Origin: string.IsNullOrWhiteSpace(req.Origin) ? null : req.Origin.Trim(),
+            Price: req.Price,
+            Stock: req.Stock,
+            Status: req.Status,
             IsDeleted: false,
             CreatedAt: now,
             CreatedBy: _currentUser.UserId,
@@ -50,10 +57,8 @@ public sealed class ProductService
     public Task<IReadOnlyList<ProductDto>> ListAsync(string? keyword, int limit, string? cursor, CancellationToken ct)
         => _repo.ListAsync(_currentUser.OrgId, keyword, limit, cursor, ct);
 
-     // page list with cursor-based pagination
     public Task<PagedResult<ProductDto>> PageListAsync(string orgId, string? keyword, int limit, string? cursor, CancellationToken ct)
         => _repo.PageListAsync(orgId, keyword, limit, cursor, ct);
-    
 
     public async Task UpdateAsync(string id, UpdateProductRequest req, CancellationToken ct)
     {
@@ -61,16 +66,25 @@ public sealed class ProductService
         if (existing is null || existing.IsDeleted)
             throw new KeyNotFoundException("Product not found");
 
-        if (string.IsNullOrWhiteSpace(req.Name)) throw new ArgumentException("Name is required");
+        if (string.IsNullOrWhiteSpace(req.Name))
+            throw new ArgumentException("Name is required");
+
+        if (req.Price < 0)
+            throw new ArgumentException("Price must be >= 0");
+
+        if (req.Stock < 0)
+            throw new ArgumentException("Stock must be >= 0");
 
         var now = _clock.UtcNow;
 
         var updated = existing with
         {
             Name = req.Name.Trim(),
-            Category = req.Category?.Trim() ?? "",
-            UnitPrice = req.UnitPrice,
-            StockWarningThreshold = req.StockWarningThreshold,
+            Supplier = string.IsNullOrWhiteSpace(req.Supplier) ? null : req.Supplier.Trim(),
+            Origin = string.IsNullOrWhiteSpace(req.Origin) ? null : req.Origin.Trim(),
+            Price = req.Price,
+            Stock = req.Stock,
+            Status = req.Status,
             UpdatedAt = now,
             UpdatedBy = _currentUser.UserId
         };

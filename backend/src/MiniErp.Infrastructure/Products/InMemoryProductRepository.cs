@@ -1,92 +1,137 @@
 using MiniErp.Application.Abstractions;
 using MiniErp.Application.Products;
 using MiniErp.Application.Products.Models;
+using System.Collections.Concurrent;
+using System.Text;
+using System.Text.Json;
 
 namespace MiniErp.Infrastructure.Products;
 
+// Comments in English.
 public sealed class InMemoryProductRepository : IProductRepository
 {
-    // 用 ProductDto 直接存，不需要 InMemoryProductEntity
-    private readonly Dictionary<string, ProductDto> _items = new();
+    private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, ProductDto>> _store = new();
 
-    private static string Key(string orgId, string productId) => $"{orgId}#{productId}";
+    private ConcurrentDictionary<string, ProductDto> Bucket(string orgId)
+        => _store.GetOrAdd(orgId, _ => new ConcurrentDictionary<string, ProductDto>());
 
     public Task CreateAsync(string orgId, ProductDto product, CancellationToken ct)
     {
-        _items[Key(orgId, product.Id)] = product;
+        Bucket(orgId)[product.Id] = product;
         return Task.CompletedTask;
     }
 
     public Task<ProductDto?> GetAsync(string orgId, string productId, CancellationToken ct)
     {
-        _items.TryGetValue(Key(orgId, productId), out var dto);
-        if (dto is null) return Task.FromResult<ProductDto?>(null);
-        return Task.FromResult<ProductDto?>(dto.IsDeleted ? null : dto);
-    }
+        if (Bucket(orgId).TryGetValue(productId, out var dto))
+            return Task.FromResult(dto.IsDeleted ? null : dto);
 
-    // ✅ 保留原来的不分页 List 接口
-    public Task<IReadOnlyList<ProductDto>> ListAsync(string orgId, string? keyword, int limit, string? cursor, CancellationToken ct)
-    {
-        limit = Math.Clamp(limit, 1, 200);
-
-        var list = _items
-            .Where(kv => kv.Key.StartsWith(orgId + "#", StringComparison.Ordinal))
-            .Select(kv => kv.Value)
-            .Where(x => !x.IsDeleted)
-            .Where(x => string.IsNullOrWhiteSpace(keyword)
-                     || x.Name.Contains(keyword, StringComparison.OrdinalIgnoreCase)
-                     || x.Sku.Contains(keyword, StringComparison.OrdinalIgnoreCase))
-            .OrderByDescending(x => x.UpdatedAt) // 随便选一个排序规则，便于分页稳定
-            .Take(limit)
-            .ToList()
-            .AsReadOnly();
-
-        return Task.FromResult<IReadOnlyList<ProductDto>>(list);
-    }
-
-    // ✅ 新增：带分页的 PageList
-    public  Task<PagedResult<ProductDto>> PageListAsync(string orgId, string? keyword, int limit, string? cursor, CancellationToken ct)
-    {
-        limit = Math.Clamp(limit, 1, 200);
-
-        // cursor = offset（简单实现，InMemory 用这个足够）
-        var offset = 0;
-        if (!string.IsNullOrWhiteSpace(cursor))
-            int.TryParse(cursor, out offset);
-
-        var all = _items
-            .Where(kv => kv.Key.StartsWith(orgId + "#", StringComparison.Ordinal))
-            .Select(kv => kv.Value)
-            .Where(x => !x.IsDeleted)
-            .Where(x => string.IsNullOrWhiteSpace(keyword)
-                     || x.Name.Contains(keyword, StringComparison.OrdinalIgnoreCase)
-                     || x.Sku.Contains(keyword, StringComparison.OrdinalIgnoreCase))
-            .OrderByDescending(x => x.UpdatedAt)
-            .ToList();
-
-        var page = all.Skip(offset).Take(limit).ToList();
-
-        var nextOffset = offset + page.Count;
-        var nextCursor = nextOffset < all.Count ? nextOffset.ToString() : null;
-
-        return Task.FromResult(new PagedResult<ProductDto>(page, nextCursor));
+        return Task.FromResult<ProductDto?>(null);
     }
 
     public Task UpdateAsync(string orgId, ProductDto product, CancellationToken ct)
-        => CreateAsync(orgId, product, ct);
-
-    public async Task SoftDeleteAsync(string orgId, string productId, CancellationToken ct)
     {
-        var existing = await GetAsync(orgId, productId, ct);
-        if (existing is null) return;
+        Bucket(orgId)[product.Id] = product;
+        return Task.CompletedTask;
+    }
 
-        var deleted = existing with
+    public Task SoftDeleteAsync(string orgId, string productId, CancellationToken ct)
+    {
+        if (Bucket(orgId).TryGetValue(productId, out var dto))
         {
-            IsDeleted = true,
-            UpdatedAt = DateTimeOffset.UtcNow,
-            UpdatedBy = "system"
-        };
+            Bucket(orgId)[productId] = dto with { IsDeleted = true, UpdatedAt = DateTime.UtcNow };
+        }
+        return Task.CompletedTask;
+    }
 
-        await UpdateAsync(orgId, deleted, ct);
+    public Task<IReadOnlyList<ProductDto>> ListAsync(string orgId, string? keyword, int limit, string? cursor, CancellationToken ct)
+    {
+        var safeLimit = Math.Clamp(limit, 1, 200);
+
+        IEnumerable<ProductDto> q = Bucket(orgId).Values
+            .Where(x => !x.IsDeleted)
+            .OrderByDescending(x => x.CreatedAt);
+
+        if (!string.IsNullOrWhiteSpace(keyword))
+        {
+            var k = keyword.Trim();
+            q = q.Where(x =>
+                x.Name.Contains(k, StringComparison.OrdinalIgnoreCase) ||
+                (x.Supplier ?? "").Contains(k, StringComparison.OrdinalIgnoreCase) ||
+                (x.Origin ?? "").Contains(k, StringComparison.OrdinalIgnoreCase)
+            );
+        }
+
+        // Cursor ignored for list (simple version)
+        return Task.FromResult<IReadOnlyList<ProductDto>>(q.Take(safeLimit).ToList());
+    }
+
+    public Task<PagedResult<ProductDto>> PageListAsync(string orgId, string? keyword, int limit, string? cursor, CancellationToken ct)
+    {
+        var safeLimit = Math.Clamp(limit, 1, 200);
+
+        IEnumerable<ProductDto> q = Bucket(orgId).Values
+            .Where(x => !x.IsDeleted)
+            .OrderByDescending(x => x.CreatedAt);
+
+        if (!string.IsNullOrWhiteSpace(keyword))
+        {
+            var k = keyword.Trim();
+            q = q.Where(x =>
+                x.Name.Contains(k, StringComparison.OrdinalIgnoreCase) ||
+                (x.Supplier ?? "").Contains(k, StringComparison.OrdinalIgnoreCase) ||
+                (x.Origin ?? "").Contains(k, StringComparison.OrdinalIgnoreCase)
+            );
+        }
+
+        // Cursor is an offset in this in-memory implementation
+        var offset = DecodeOffset(cursor);
+        var pageItems = q.Skip(offset).Take(safeLimit).ToList();
+
+        string? nextCursor = null;
+        var nextOffset = offset + pageItems.Count;
+        if (pageItems.Count == safeLimit && q.Skip(nextOffset).Any())
+        {
+            nextCursor = EncodeOffset(nextOffset);
+        }
+
+        return Task.FromResult(new PagedResult<ProductDto>(pageItems, nextCursor));
+    }
+
+    private static string EncodeOffset(int offset)
+    {
+        var json = JsonSerializer.Serialize(new { offset });
+        return Base64UrlEncode(Encoding.UTF8.GetBytes(json));
+    }
+
+    private static int DecodeOffset(string? cursor)
+    {
+        if (string.IsNullOrWhiteSpace(cursor)) return 0;
+
+        try
+        {
+            var bytes = Base64UrlDecode(cursor);
+            var json = Encoding.UTF8.GetString(bytes);
+            using var doc = JsonDocument.Parse(json);
+            return doc.RootElement.GetProperty("offset").GetInt32();
+        }
+        catch
+        {
+            return 0;
+        }
+    }
+
+    private static string Base64UrlEncode(byte[] bytes)
+        => Convert.ToBase64String(bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_');
+
+    private static byte[] Base64UrlDecode(string input)
+    {
+        var s = input.Replace('-', '+').Replace('_', '/');
+        switch (s.Length % 4)
+        {
+            case 2: s += "=="; break;
+            case 3: s += "="; break;
+        }
+        return Convert.FromBase64String(s);
     }
 }

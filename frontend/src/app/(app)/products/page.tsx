@@ -4,6 +4,7 @@
 
 import * as React from "react";
 import type { ColumnDef, RowSelectionState } from "@tanstack/react-table";
+import { useRouter } from "next/navigation";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,10 @@ import { Input } from "@/components/ui/input";
 
 import { FilterBar } from "@/components/common/filter-bar";
 import { DataTable } from "@/components/common/data-table";
+
+import { pageProducts, deleteProduct } from "@/lib/apis/products";
+// If you have backend batch delete API, uncomment this:
+// import { batchDeleteProducts } from "@/lib/apis/products";
 
 type ProductRow = {
     id: string;
@@ -22,146 +27,250 @@ type ProductRow = {
     status: "Active" | "Inactive";
 };
 
-const mockData: ProductRow[] = [
-    { id: "9", name: "Walnut", supplier: "ABC Foods", origin: "VIC", price: 100, stock: 120, status: "Active" },
-    { id: "8", name: "Spiced Beef", supplier: "ABC Foods", origin: "NSW", price: 100, stock: 100, status: "Active" },
-    { id: "7", name: "Orange Juice", supplier: "Fresh Co", origin: "SA", price: 6, stock: 280, status: "Active" },
-    { id: "6", name: "Milk 2L", supplier: "Dairy Best", origin: "VIC", price: 4, stock: 60, status: "Inactive" },
-    { id: "5", name: "Rice 5kg", supplier: "Good Grains", origin: "QLD", price: 18, stock: 42, status: "Active" },
-    { id: "4", name: "Soy Sauce", supplier: "ABC Foods", origin: "NSW", price: 8, stock: 150, status: "Active" },
-];
-
-const columns: ColumnDef<ProductRow>[] = [
-    {
-        accessorKey: "id",
-        header: "No.",
-        cell: ({ row }) => <span className="text-muted-foreground">{row.original.id}</span>,
-    },
-    { accessorKey: "name", header: "Product Name" },
-    { accessorKey: "supplier", header: "Supplier" },
-    { accessorKey: "origin", header: "Origin" },
-    {
-        accessorKey: "price",
-        header: "Price",
-        cell: ({ row }) => <span className="tabular-nums">${row.original.price}</span>,
-    },
-    {
-        accessorKey: "stock",
-        header: "Stock",
-        cell: ({ row }) => <span className="tabular-nums">{row.original.stock}</span>,
-    },
-    {
-        accessorKey: "status",
-        header: "Status",
-        cell: ({ row }) =>
-            row.original.status === "Active" ? (
-                <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">Active</Badge>
-            ) : (
-                <Badge variant="secondary">Inactive</Badge>
-            ),
-    },
-    {
-        id: "actions",
-        header: "Actions",
-        cell: ({ row }) => (
-            <div className="flex gap-2 justify-end">
-                <Button size="sm" variant="outline" onClick={() => console.log("edit", row.original.id)}>
-                    Edit
-                </Button>
-                <Button size="sm" variant="destructive" onClick={() => console.log("delete", row.original.id)}>
-                    Delete
-                </Button>
-            </div>
-        ),
-    },
-];
-
 export default function ProductsPage() {
     // Filters
     const [supplier, setSupplier] = React.useState("");
     const [product, setProduct] = React.useState("");
 
-    // Table data (local mock)
-    const [rows, setRows] = React.useState<ProductRow[]>(mockData);
+    const router = useRouter();
 
-    // Selection
+    // Table data (server page)
+    const [rows, setRows] = React.useState<ProductRow[]>([]);
+    const [loading, setLoading] = React.useState(false);
+    const [error, setError] = React.useState<string | null>(null);
+
+    // Selection (TanStack uses rowId keys; by default rowId is row index string)
     const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({});
 
-    // Pagination
+    // Pagination (cursor-based)
     const [pageIndex, setPageIndex] = React.useState(0);
     const [pageSize, setPageSize] = React.useState(10);
 
-    // Filtered rows (client-side)
-    const filteredRows = React.useMemo(() => {
-        const s = supplier.trim().toLowerCase();
-        const p = product.trim().toLowerCase();
+    // cursorStack[i] is the cursor used to load page i
+    // page0 cursor is null (first page)
+    const [cursorStack, setCursorStack] = React.useState<(string | null)[]>([null]);
+    const [nextCursor, setNextCursor] = React.useState<string | null>(null);
 
-        return rows.filter((r) => {
-            const okSupplier = !s || r.supplier.toLowerCase().includes(s);
-            const okProduct = !p || r.name.toLowerCase().includes(p);
-            return okSupplier && okProduct;
-        });
-    }, [rows, supplier, product]);
+    // Delete state
+    const [loadingDelete, setLoadingDelete] = React.useState(false);
 
-    // Paging (client-side)
-    const totalCount = filteredRows.length;
-    const pageCount = Math.max(1, Math.ceil(totalCount / pageSize));
+    // Combine supplier + product into a single keyword (backend supports only one keyword)
+    const keyword = React.useMemo(() => {
+        const s = supplier.trim();
+        const p = product.trim();
+        if (s && p) return `${s} ${p}`;
+        return s || p || "";
+    }, [supplier, product]);
 
-    // Keep pageIndex in range when filters/pageSize change
+    const loadPage = React.useCallback(
+        async (targetPageIndex: number, cursorOverride?: string | null) => {
+            setLoading(true);
+            setError(null);
+
+            const cursor = cursorOverride ?? (cursorStack[targetPageIndex] ?? null);
+
+            try {
+                const res = await pageProducts({
+                    keyword: keyword || undefined,
+                    limit: pageSize,
+                    cursor: cursor || undefined,
+                });
+
+                // NOTE: If backend dto differs from ProductRow, map here.
+                setRows(res.items as ProductRow[]);
+                setNextCursor(res.nextCursor ?? null);
+
+                setPageIndex(targetPageIndex);
+                setRowSelection({});
+            } catch (e: any) {
+                setError(e?.message ?? "Failed to load products");
+            } finally {
+                setLoading(false);
+            }
+        },
+        [cursorStack, keyword, pageSize]
+    );
+
+    // Initial load & when pageSize changes
     React.useEffect(() => {
-        setPageIndex((prev) => Math.min(prev, pageCount - 1));
-    }, [pageCount]);
+        setCursorStack([null]);
+        setNextCursor(null);
+        void loadPage(0, null);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [pageSize]);
 
-    const pageData = React.useMemo(() => {
-        const start = pageIndex * pageSize;
-        return filteredRows.slice(start, start + pageSize);
-    }, [filteredRows, pageIndex, pageSize]);
+    const handleSearch = React.useCallback(() => {
+        setCursorStack([null]);
+        setNextCursor(null);
+        void loadPage(0, null);
+    }, [loadPage]);
 
-    // Selected row ids (TanStack uses row index keys, not your id)
-    const selectedRowIndexes = Object.keys(rowSelection).filter((k) => (rowSelection as Record<string, boolean>)[k]);
-    const hasSelected = selectedRowIndexes.length > 0;
-
-    function handleSearch() {
-        // For mock filtering, nothing special to do (it's reactive),
-        // but we reset to first page to match typical UX.
-        setPageIndex(0);
-    }
-
-    function handleReset() {
+    const handleReset = React.useCallback(() => {
         setSupplier("");
         setProduct("");
-        setPageIndex(0);
-    }
+        setCursorStack([null]);
+        setNextCursor(null);
+        void loadPage(0, null);
+    }, [loadPage]);
 
-    function handleAdd() {
-        // Mock add a new row
-        const newId = String(Date.now()).slice(-6);
-        const newRow: ProductRow = {
-            id: newId,
-            name: `New Product ${newId}`,
-            supplier: "New Supplier",
-            origin: "SA",
-            price: 1,
-            stock: 1,
-            status: "Active",
-        };
-        setRows((prev) => [newRow, ...prev]);
-        setPageIndex(0);
-        setRowSelection({});
-    }
+    // Cursor paging doesn't know exact total; expose an approximate pageCount/totalCount.
+    const pageCount = nextCursor ? pageIndex + 2 : pageIndex + 1;
+    const totalCount = pageCount * pageSize;
 
-    function handleBatchDelete() {
-        // Because rowSelection is based on current page row indexes,
-        // we delete by mapping selected row indexes to actual row ids in pageData.
-        const idsToDelete = selectedRowIndexes
-            .map((idx) => pageData[Number(idx)]?.id)
+    const onPageChange = React.useCallback(
+        (nextIndex: number) => {
+            // Backward: cursor already known in cursorStack
+            if (nextIndex < pageIndex) {
+                void loadPage(nextIndex);
+                return;
+            }
+
+            // Forward
+            if (nextIndex > pageIndex) {
+                if (!nextCursor) return;
+
+                // Persist cursor for the next page
+                setCursorStack((prev) => {
+                    const copy = [...prev];
+                    copy[nextIndex] = nextCursor;
+                    return copy;
+                });
+
+                // Load immediately with cursor override (avoid async state timing)
+                void loadPage(nextIndex, nextCursor);
+            }
+        },
+        [loadPage, nextCursor, pageIndex]
+    );
+
+    const handleAdd = React.useCallback(() => {
+        router.push("/products/new");
+    }, [router]);
+
+    // Single delete
+    const handleDeleteOne = React.useCallback(
+        async (row: ProductRow) => {
+            if (!window.confirm(`Delete product "${row.name}"?`)) return;
+
+            setLoadingDelete(true);
+            setError(null);
+
+            try {
+                await deleteProduct(row.id);
+
+                // Safer for cursor paging: reload current page
+                const cursor = cursorStack[pageIndex] ?? null;
+                await loadPage(pageIndex, cursor);
+            } catch (err: any) {
+                setError(err?.message ?? "Delete failed");
+            } finally {
+                setLoadingDelete(false);
+            }
+        },
+        [cursorStack, loadPage, pageIndex]
+    );
+
+    // Batch delete (current page)
+    const handleBatchDelete = React.useCallback(async () => {
+        // TanStack selection keys are row ids; by default it's index string: "0", "1", ...
+        const selectedIndexes = Object.keys(rowSelection).filter((k) => rowSelection[k]);
+        const idsToDelete = selectedIndexes
+            .map((k) => rows[Number(k)]?.id)
             .filter(Boolean) as string[];
 
         if (idsToDelete.length === 0) return;
+        if (!window.confirm(`Delete ${idsToDelete.length} products?`)) return;
 
-        setRows((prev) => prev.filter((r) => !idsToDelete.includes(r.id)));
-        setRowSelection({});
-    }
+        setLoadingDelete(true);
+        setError(null);
+
+        try {
+            // Option A: no backend batch API -> parallel delete
+            await Promise.all(idsToDelete.map((id) => deleteProduct(id)));
+
+            // Option B: if you have backend batch API, use it:
+            // await batchDeleteProducts(idsToDelete);
+
+            // Reload current page after delete
+            const cursor = cursorStack[pageIndex] ?? null;
+            await loadPage(pageIndex, cursor);
+        } catch (err: any) {
+            setError(err?.message ?? "Batch delete failed");
+        } finally {
+            setLoadingDelete(false);
+        }
+    }, [cursorStack, loadPage, pageIndex, rowSelection, rows]);
+
+    const hasSelected = React.useMemo(
+        () => Object.values(rowSelection).some(Boolean),
+        [rowSelection]
+    );
+
+    // Columns inside component to access handlers/states
+    const columns = React.useMemo<ColumnDef<ProductRow>[]>(() => {
+        return [
+            // {
+            //     accessorKey: "id",
+            //     header: "No.",
+            //     cell: ({ row }) => (
+            //         <span className="text-muted-foreground">{row.original.id}</span>
+            //     ),
+            // },
+            { accessorKey: "name", header: "Product Name" },
+            { accessorKey: "supplier", header: "Supplier" },
+            { accessorKey: "origin", header: "Origin" },
+            {
+                accessorKey: "price",
+                header: "Price",
+                cell: ({ row }) => (
+                    <span className="tabular-nums">${row.original.price}</span>
+                ),
+            },
+            {
+                accessorKey: "stock",
+                header: "Stock",
+                cell: ({ row }) => (
+                    <span className="tabular-nums">{row.original.stock}</span>
+                ),
+            },
+            {
+                accessorKey: "status",
+                header: "Status",
+                cell: ({ row }) =>
+                    row.original.status === "Active" ? (
+                        <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
+                            Active
+                        </Badge>
+                    ) : (
+                        <Badge variant="secondary">Inactive</Badge>
+                    ),
+            },
+            {
+                id: "actions",
+                header: "Actions",
+                cell: ({ row }) => (
+                    <div className="flex gap-2 justify-end">
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => router.push(`/products/${row.original.id}/edit`)}
+                            disabled={loading || loadingDelete}
+                        >
+                            Edit
+                        </Button>
+                        <Button
+                            size="sm"
+                            variant="destructive"
+                            disabled={loading || loadingDelete}
+                            onClick={() => void handleDeleteOne(row.original)}
+                        >
+                            Delete
+                        </Button>
+                    </div>
+                ),
+            },
+        ];
+    }, [handleDeleteOne, loading, loadingDelete, router]);
 
     return (
         <div className="space-y-4">
@@ -173,24 +282,42 @@ export default function ProductsPage() {
                             placeholder="Please enter supplier name"
                             value={supplier}
                             onChange={(e) => setSupplier(e.target.value)}
+                            disabled={loading || loadingDelete}
                         />
                         <Input
                             className="w-[240px]"
                             placeholder="Please enter product name"
                             value={product}
                             onChange={(e) => setProduct(e.target.value)}
+                            disabled={loading || loadingDelete}
                         />
                     </>
                 }
                 primaryActions={[
-                    { key: "search", label: "Search", variant: "secondary", onClick: handleSearch },
-                    { key: "reset", label: "Reset", variant: "outline", onClick: handleReset },
+                    {
+                        key: "search",
+                        label: "Search",
+                        variant: "secondary",
+                        onClick: handleSearch,
+                        disabled: loading || loadingDelete,
+                    },
+                    {
+                        key: "reset",
+                        label: "Reset",
+                        variant: "outline",
+                        onClick: handleReset,
+                        disabled: loading || loadingDelete,
+                    },
                 ]}
             />
 
+            {error ? (
+                <div className="rounded-md border p-3 text-sm text-red-600">{error}</div>
+            ) : null}
+
             <DataTable
                 columns={columns}
-                data={pageData}
+                data={rows}
                 enableRowSelection
                 rowSelection={rowSelection}
                 onRowSelectionChange={setRowSelection}
@@ -198,15 +325,28 @@ export default function ProductsPage() {
                 pageSize={pageSize}
                 pageCount={pageCount}
                 totalCount={totalCount}
-                onPageChange={setPageIndex}
+                onPageChange={onPageChange}
                 onPageSizeChange={(s) => {
                     setPageSize(s);
                     setPageIndex(0);
                     setRowSelection({});
                 }}
+                loading={loading || loadingDelete}
                 actions={[
-                    { key: "add", label: "Add", variant: "secondary", onClick: handleAdd },
-                    { key: "batchDel", label: "Batch Delete", variant: "destructive", disabled: !hasSelected, onClick: handleBatchDelete },
+                    {
+                        key: "add",
+                        label: "Add",
+                        variant: "secondary",
+                        onClick: handleAdd,
+                        disabled: loading || loadingDelete,
+                    },
+                    {
+                        key: "batchDel",
+                        label: loadingDelete ? "Deleting..." : "Batch Delete",
+                        variant: "destructive",
+                        disabled: !hasSelected || loading || loadingDelete,
+                        onClick: () => void handleBatchDelete(),
+                    },
                 ]}
             />
         </div>

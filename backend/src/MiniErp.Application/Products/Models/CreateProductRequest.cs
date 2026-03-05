@@ -1,9 +1,19 @@
+using MiniErp.Application.Products.Models;
+
 namespace MiniErp.Application.Products.Models;
 
+// Comments in English.
 public sealed record CreateProductRequest(
     string Name,
-    string Sku,
-    string Category,
-    decimal UnitPrice,
-    int StockWarningThreshold
+    string? Supplier,
+    string? Origin,
+    decimal Price,
+    int Stock,
+    ProductStatus Status
 );
+
+public enum ProductStatus
+{
+    Active = 0,
+    Inactive = 1
+}

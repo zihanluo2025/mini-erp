@@ -8,6 +8,7 @@ using MiniErp.Infrastructure.Users;
 using Amazon.DynamoDBv2;
 using Amazon.Lambda.AspNetCoreServer.Hosting;
 using Amazon.CognitoIdentityProvider;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,6 +16,13 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddAWSLambdaHosting(LambdaEventSource.HttpApi);
+
+
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    // Allow enums to be sent/received as strings, e.g. "Active"
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
+});
 // CORS
 // CORS (Lambda/API Gateway friendly)
 var corsRaw = builder.Configuration["CORS_ALLOWED_ORIGINS"] ?? "";
@@ -29,7 +37,7 @@ builder.Services.AddCors(options =>
             allowedOrigins = new[] { "http://localhost:3000" };
 
         policy.WithOrigins(allowedOrigins)
-              .WithHeaders("Content-Type", "Authorization") 
+              .WithHeaders("Content-Type", "Authorization")
               .WithMethods("GET", "POST", "PUT", "DELETE", "OPTIONS");
     });
 });

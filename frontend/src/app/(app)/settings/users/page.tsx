@@ -268,7 +268,7 @@ export default function UsersPage() {
         onSubmit={handleCreate}
         className="grid gap-3 rounded-lg border bg-card p-4 md:grid-cols-5 md:items-end"
       >
-        <div className="md:col-span-2 space-y-1.5">
+        <div className="md:col-span-2  space-y-1.5">
           <Label htmlFor="new-email">Email</Label>
           <Input
             id="new-email"
@@ -300,6 +300,7 @@ export default function UsersPage() {
           >
             Clear
           </Button>
+
           <Button
             type="submit"
             className="w-full md:w-auto"
