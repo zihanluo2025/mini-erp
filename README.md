@@ -1,4 +1,4 @@
-# Purchase and sales management system
+# LedgerOne
 
 - Online : https://erp.luozihan.space
 - Account: admin@example.com
