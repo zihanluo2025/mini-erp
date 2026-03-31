@@ -113,7 +113,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
             <div className="grid grid-cols-[240px_1fr]">
                 {/* Sidebar */}
                 <aside className="min-h-screen erp-sidebar">
-                    <div className="erp-brand">Mini ERP</div>
+                    <div className="erp-brand">LOGER ONE</div>
 
                     <nav className="erp-nav">
                         {nav.map((item) => {
