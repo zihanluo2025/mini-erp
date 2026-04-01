@@ -52,7 +52,7 @@ type DataTableProps<TData, TValue> = {
     loading?: boolean;
     emptyText?: string;
 
-    // ✅ New: Table action buttons shown above the table
+    // New: Table action buttons shown above the table
     actions?: DataTableAction[];
 };
 
@@ -151,7 +151,7 @@ export function DataTable<TData, TValue>({
     );
 
     return (
-        <div className="rounded-xl border bg-white">
+        <div className="rounded-sm  bg-white">
             <div className="p-3">
                 {/* Action bar INSIDE table component */}
                 {actions.length ? (

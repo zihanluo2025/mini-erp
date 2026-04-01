@@ -36,7 +36,7 @@ export function FilterBar({
         <div className={["w-full", className].filter(Boolean).join(" ")}>
             {title ? <div className="mb-3">{title}</div> : null}
 
-            <div className="rounded-xl border bg-white p-4">
+            <div className="rounded-xl  bg-white p-4">
                 {/* Row 1: Filters + Query/Reset */}
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
                     <div className="flex flex-wrap items-end gap-3">{fields}</div>

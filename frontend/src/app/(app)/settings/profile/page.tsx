@@ -1,257 +1,290 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
+import Image from "next/image";
+import {
+    Bell,
+    BriefcaseBusiness,
+    ChevronDown,
+    KeyRound,
+    Laptop,
+    LockKeyhole,
+    Mail,
+    Shield,
+    User,
+    UserRound,
+} from "lucide-react";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 
-type ProfileForm = {
-    fullName: string;
-    email: string;
-    phone: string;
-    role: "admin" | "user";
-    timezone: string;
-    language: string;
-    jobTitle: string;
-    bio: string;
-    notifyEmail: boolean;
-    notifySecurity: boolean;
-};
+type TabKey = "profile" | "security" | "notifications" | "api";
+
+const sidebarItems: {
+    key: TabKey;
+    label: string;
+    icon: React.ComponentType<{ className?: string }>;
+}[] = [
+        { key: "profile", label: "Profile", icon: User },
+        { key: "security", label: "Security", icon: Shield },
+        { key: "notifications", label: "Notifications", icon: Bell },
+        { key: "api", label: "API Access", icon: LockKeyhole },
+    ];
 
 export default function ProfilePage() {
-    // Mock user data (replace with Cognito later)
-    const initial = useMemo<ProfileForm>(
-        () => ({
-            fullName: "Luozihan",
-            email: "luo@example.com",
-            phone: "+61 4xx xxx xxx",
-            role: "admin",
-            timezone: "Australia/Adelaide",
-            language: "en",
-            jobTitle: "Software Engineer",
-            bio: "Building Mini ERP with AWS Cognito + Amplify.",
-            notifyEmail: true,
-            notifySecurity: true,
-        }),
-        []
-    );
+    const [activeTab, setActiveTab] = useState<TabKey>("profile");
 
-    const [form, setForm] = useState<ProfileForm>(initial);
-    const [saving, setSaving] = useState(false);
-    const [dirty, setDirty] = useState(false);
+    const [form, setForm] = useState({
+        fullName: "Alexander Sterling",
+        email: "a.sterling@executivelayer.com",
+        jobTitle: "Senior Controller",
+        department: "Executive Management",
+        emailAlerts: true,
+        desktopNotifications: false,
+        twoFactorEnabled: true,
+    });
 
-    function update<K extends keyof ProfileForm>(key: K, value: ProfileForm[K]) {
-        setForm((prev) => ({ ...prev, [key]: value }));
-        setDirty(true);
-    }
-
-    async function onSave() {
-        setSaving(true);
-        try {
-            // TODO: call backend API to persist, or update Cognito attributes
-            await new Promise((r) => setTimeout(r, 600));
-            setDirty(false);
-        } finally {
-            setSaving(false);
-        }
-    }
-
-    function onReset() {
-        setForm(initial);
-        setDirty(false);
-    }
-
-    const initials = useMemo(() => {
-        const parts = form.fullName.trim().split(/\s+/);
-        const a = parts[0]?.[0] ?? "U";
-        const b = parts[1]?.[0] ?? "";
-        return (a + b).toUpperCase();
-    }, [form.fullName]);
+    const handleChange = (key: keyof typeof form, value: string | boolean) => {
+        setForm((prev) => ({
+            ...prev,
+            [key]: value,
+        }));
+    };
 
     return (
-        <div className="p-2">
+        <div className="space-y-6">
 
 
+            {/* Main layout */}
+            <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
+                {/* Left column */}
+                <div className="space-y-6">
+                    {/* Profile summary */}
+                    <section className="rounded-sm border border-[var(--erp-border)] bg-white p-6 shadow-none">
+                        <div className="flex flex-col items-center text-center">
+                            <div className="relative mb-5">
+                                <div className="flex h-28 w-28 items-center justify-center rounded-2xl border border-[#d9e2ef] bg-[#EFF4FF] text-[#163d73]">
+                                    <UserRound className="h-10 w-10" />
+                                </div>
 
-            <div className="grid gap-6 lg:grid-cols-3">
-                {/* Left: summary */}
-                <Card className="lg:col-span-1">
-                    <CardHeader>
-                        <CardTitle>Account</CardTitle>
-                        <CardDescription>Your basic account details</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <div className="flex items-center gap-3">
-                            <Avatar className="h-10 w-10">
-                                <AvatarFallback>{initials}</AvatarFallback>
-                            </Avatar>
-                            <div className="min-w-0">
-                                <div className="truncate font-medium">{form.fullName || "Unnamed User"}</div>
-                                <div className="truncate text-sm text-muted-foreground">{form.email}</div>
+                                <button
+                                    type="button"
+                                    className="absolute bottom-0 right-0 flex h-10 w-10 items-center justify-center rounded-full bg-[#1658DC] text-white shadow-sm transition hover:bg-[#104cc5]"
+                                >
+                                    <span className="text-sm">✎</span>
+                                </button>
+                            </div>
+
+                            <h3 className="text-[20px] font-semibold tracking-[-0.02em] text-[#163d73]">
+                                {form.fullName}
+                            </h3>
+                            <p className="mt-1 text-[15px] text-[#5f7190]">{form.jobTitle}</p>
+
+                            <div className="mt-5 inline-flex items-center gap-2 rounded-full bg-emerald-50 px-4 py-2 text-[13px] font-semibold text-emerald-600">
+                                <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                                ACTIVE STATUS
                             </div>
                         </div>
+                    </section>
 
-                        <Separator />
-
-                        <div className="space-y-2">
-                            <div className="flex items-center justify-between text-sm">
-                                <span className="text-muted-foreground">Role</span>
-                                <Badge variant="secondary" className="capitalize">
-                                    {form.role}
-                                </Badge>
-                            </div>
-
-                            <div className="flex items-center justify-between text-sm">
-                                <span className="text-muted-foreground">Timezone</span>
-                                <span className="truncate">{form.timezone}</span>
-                            </div>
-
-                            <div className="flex items-center justify-between text-sm">
-                                <span className="text-muted-foreground">Language</span>
-                                <span className="uppercase">{form.language}</span>
-                            </div>
-
-                            <div className="flex items-center justify-between text-sm">
-                                <span className="text-muted-foreground">Role</span>
-                                <span className="uppercase">{form.role}</span>
-                            </div>
+                    {/* Sidebar menu */}
+                    {/* Notification Settings */}
+                    <section className="rounded-sm border border-[var(--erp-border)] bg-white p-6 shadow-none">
+                        <div className="mb-6 flex items-center gap-3">
+                            <Bell className="h-5 w-5 text-[#1658DC]" />
+                            <h3 className="text-[20px] font-semibold tracking-[-0.02em] text-[#163d73]">
+                                Notification Settings
+                            </h3>
                         </div>
 
-                        <Separator />
-
-
-                    </CardContent>
-                </Card>
-
-                {/* Right: form */}
-                <Card className="lg:col-span-2">
-                    <CardHeader className="flex-row items-start justify-between space-y-0">
-                        <div>
-                            <CardTitle>Profile details</CardTitle>
-                            <CardDescription>Edit and save your profile settings</CardDescription>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                            <Button variant="outline" onClick={onReset} disabled={!dirty || saving}>
-                                Cancel
-                            </Button>
-                            <Button onClick={onSave} disabled={!dirty || saving}>
-                                {saving ? "Saving..." : "Save changes"}
-                            </Button>
-                        </div>
-                    </CardHeader>
-
-                    <CardContent className="space-y-6">
-                        {/* Basic Info */}
-                        <div className="space-y-4">
-                            <div className="text-sm font-medium">Basic information</div>
-                            <div className="grid gap-4 md:grid-cols-2">
-                                <div className="space-y-2">
-                                    <Label htmlFor="fullName">Full name</Label>
-                                    <Input
-                                        id="fullName"
-                                        value={form.fullName}
-                                        onChange={(e) => update("fullName", e.target.value)}
-                                        placeholder="Your name"
+                        <div className="grid gap-4 md:grid-cols-1">
+                            <InfoActionCard
+                                icon={<Mail className="h-5 w-5 text-[#1658DC]" />}
+                                title="Email Alerts"
+                                description=""
+                                action={
+                                    <Switch
+                                        checked={form.emailAlerts}
+                                        onCheckedChange={(checked) =>
+                                            handleChange("emailAlerts", checked)
+                                        }
                                     />
-                                </div>
+                                }
+                            />
 
-                                <div className="space-y-2">
-                                    <Label htmlFor="jobTitle">Job title</Label>
-                                    <Input
-                                        id="jobTitle"
-                                        value={form.jobTitle}
-                                        onChange={(e) => update("jobTitle", e.target.value)}
-                                        placeholder="e.g. Software Engineer"
+                            <InfoActionCard
+                                icon={<Laptop className="h-5 w-5 text-[#1658DC]" />}
+                                title="Desktop Notifications"
+                                description=""
+                                action={
+                                    <Switch
+                                        checked={form.desktopNotifications}
+                                        onCheckedChange={(checked) =>
+                                            handleChange("desktopNotifications", checked)
+                                        }
                                     />
-                                </div>
+                                }
+                            />
+                        </div>
+                    </section>
+                </div>
 
-                                <div className="space-y-2">
-                                    <Label htmlFor="email">Email</Label>
-                                    <Input id="email" value={form.email} disabled />
-                                    <p className="text-xs text-muted-foreground">Email is managed by Cognito.</p>
-                                </div>
+                {/* Right column */}
+                <div className="space-y-6">
+                    {/* Personal Information */}
+                    <section className="rounded-sm border border-[var(--erp-border)] bg-white p-6 shadow-none">
+                        <div className="mb-6 flex items-center gap-3">
+                            <BriefcaseBusiness className="h-5 w-5 text-[#1658DC]" />
+                            <h3 className="text-[20px] font-semibold tracking-[-0.02em] text-[#163d73]">
+                                Personal Information
+                            </h3>
+                        </div>
 
-                                <div className="space-y-2">
-                                    <Label htmlFor="phone">Phone</Label>
-                                    <Input
-                                        id="phone"
-                                        value={form.phone}
-                                        onChange={(e) => update("phone", e.target.value)}
-                                        placeholder="+61 ..."
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label htmlFor="bio">Bio</Label>
-                                <Textarea
-                                    id="bio"
-                                    value={form.bio}
-                                    onChange={(e) => update("bio", e.target.value)}
-                                    placeholder="A short introduction..."
-                                    className="min-h-[110px]"
+                        <div className="grid gap-6 md:grid-cols-2">
+                            <FieldBlock label="FULL NAME">
+                                <Input
+                                    value={form.fullName}
+                                    onChange={(e) => handleChange("fullName", e.target.value)}
+                                    className="h-12 rounded-xl border-[#d9e2ef] bg-white text-[15px] text-[#163d73] shadow-none"
                                 />
-                            </div>
+                            </FieldBlock>
 
+                            <FieldBlock label="EMAIL ADDRESS">
+                                <Input
+                                    value={form.email}
+                                    onChange={(e) => handleChange("email", e.target.value)}
+                                    className="h-12 rounded-xl border-[#d9e2ef] bg-white text-[15px] text-[#163d73] shadow-none"
+                                />
+                            </FieldBlock>
+
+                            <FieldBlock label="JOB TITLE">
+                                <Input
+                                    value={form.jobTitle}
+                                    onChange={(e) => handleChange("jobTitle", e.target.value)}
+                                    className="h-12 rounded-xl border-[#d9e2ef] bg-white text-[15px] text-[#163d73] shadow-none"
+                                />
+                            </FieldBlock>
+
+                            <FieldBlock label="DEPARTMENT">
+                                <button
+                                    type="button"
+                                    className="flex h-12 w-full items-center justify-between rounded-xl border border-[#d9e2ef] bg-white px-4 text-[15px] text-[#163d73]"
+                                >
+                                    <span>{form.department}</span>
+                                    <ChevronDown className="h-4 w-4 text-[#7b8ba5]" />
+                                </button>
+                            </FieldBlock>
+                        </div>
+                    </section>
+
+                    {/* Security & Access */}
+                    <section className="rounded-sm border border-[var(--erp-border)] bg-white p-6 shadow-none">
+                        <div className="mb-6 flex items-center gap-3">
+                            <Shield className="h-5 w-5 text-[#1658DC]" />
+                            <h3 className="text-[20px] font-semibold tracking-[-0.02em] text-[#163d73]">
+                                Security & Access
+                            </h3>
                         </div>
 
-                        <Separator />
-
-                        {/* Preferences */}
                         <div className="space-y-4">
-                            <div className="text-sm font-medium">Preferences</div>
+                            <InfoActionCard
+                                icon={<KeyRound className="h-5 w-5 text-[#1658DC]" />}
+                                title="Change Password"
+                                description="Last updated: Oct 12, 2023"
+                                action={
+                                    <Button
+                                        variant="outline"
+                                        className="h-10 rounded-xl border-[#d9e2ef] bg-white px-5 text-[#2f5d9b] hover:bg-[#f8fbff]"
+                                    >
+                                        Update
+                                    </Button>
+                                }
+                            />
 
-                            <div className="grid gap-4 md:grid-cols-2">
-                                <div className="space-y-2">
-                                    <Label>Timezone</Label>
-                                    <Select value={form.timezone} onValueChange={(v) => update("timezone", v)}>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Select timezone" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="Australia/Adelaide">Australia/Adelaide</SelectItem>
-                                            <SelectItem value="Australia/Sydney">Australia/Sydney</SelectItem>
-                                            <SelectItem value="Australia/Melbourne">Australia/Melbourne</SelectItem>
-                                            <SelectItem value="UTC">UTC</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-
-                                <div className="space-y-2">
-                                    <Label>Language</Label>
-                                    <Select value={form.language} onValueChange={(v) => update("language", v)}>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Select language" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="en">English</SelectItem>
-                                            <SelectItem value="zh">中文</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            </div>
+                            <InfoActionCard
+                                icon={<LockKeyhole className="h-5 w-5 text-[#1658DC]" />}
+                                title="Two-Factor Authentication"
+                                description="Add an extra layer of protection"
+                                action={
+                                    <Switch
+                                        checked={form.twoFactorEnabled}
+                                        onCheckedChange={(checked) =>
+                                            handleChange("twoFactorEnabled", checked)
+                                        }
+                                    />
+                                }
+                            />
                         </div>
+                    </section>
 
 
 
+                    {/* Footer actions */}
+                    <section className=" pt-6">
+                        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end">
+                            <Button
+                                variant="ghost"
+                                className="h-11 rounded-xl px-5 text-[#2f5d9b] hover:bg-[#EFF4FF]"
+                            >
+                                Discard Changes
+                            </Button>
 
-
-
-
-
-
-
-                    </CardContent>
-                </Card>
+                            <Button className="h-11 rounded-xl bg-[#1658DC] px-6 text-white hover:bg-[#104cc5]">
+                                Save Configuration
+                            </Button>
+                        </div>
+                    </section>
+                </div>
             </div>
+        </div>
+    );
+}
+
+function FieldBlock({
+    label,
+    children,
+}: {
+    label: string;
+    children: React.ReactNode;
+}) {
+    return (
+        <div className="space-y-2">
+            <label className="text-[13px] font-semibold tracking-[0.08em] text-[#3f69a1]">
+                {label}
+            </label>
+            {children}
+        </div>
+    );
+}
+
+function InfoActionCard({
+    icon,
+    title,
+    description,
+    action,
+}: {
+    icon: React.ReactNode;
+    title: string;
+    description: string;
+    action: React.ReactNode;
+}) {
+    return (
+        <div className="flex items-center justify-between gap-4 rounded-2xl bg-[#F7FAFF] px-5 py-5">
+            <div className="flex min-w-0 items-center gap-4">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#EAF2FF]">
+                    {icon}
+                </div>
+
+                <div className="min-w-0">
+                    <h4 className="text-[15px] font-semibold text-[#163d73]">{title}</h4>
+                    {description ? (
+                        <p className="mt-1 text-[14px] text-[#6e7f99]">{description}</p>
+                    ) : null}
+                </div>
+            </div>
+
+            <div className="shrink-0">{action}</div>
         </div>
     );
 }
