@@ -1,16 +1,19 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+
 import { useRouter } from "next/navigation";
 import { Mail, Lock, Fingerprint, ArrowRight } from "lucide-react";
 
-import { startHostedLogin, isSignedIn } from "@/lib/auth";
+import { startHostedLogin, isSignedIn, loginWithPassword } from "@/lib/auth";
 
 import { Button } from "@/components/ui/button";
 
 
 export default function LoginPage() {
     const router = useRouter();
+    const [email, setEmail] = useState("");
+    const [password, setPassword] = useState("");
 
     useEffect(() => {
         (async () => {
@@ -19,6 +22,22 @@ export default function LoginPage() {
             }
         })();
     }, [router]);
+
+    const handleLogin = async () => {
+        if (!email || !password) {
+            alert("Please enter email and password");
+            return;
+        }
+
+        try {
+            await loginWithPassword(email, password);
+
+            router.replace("/dashboard");
+        } catch (err) {
+            console.error(err);
+            alert("Login failed");
+        }
+    };
 
     return (
         <div className="min-h-screen bg-[#efefef]">
@@ -94,6 +113,8 @@ export default function LoginPage() {
                                     <div className="flex h-14 items-center gap-3 bg-[#eef1f7] px-4 text-[#98a2b3]">
                                         <Mail className="h-4 w-4" />
                                         <input
+                                            value={email}
+                                            onChange={(e) => setEmail(e.target.value)}
                                             type="email"
                                             placeholder="name@company.com"
                                             className="w-full bg-transparent text-[16px] text-[#111827] outline-none placeholder:text-[#b0b8c7]"
@@ -117,6 +138,8 @@ export default function LoginPage() {
                                     <div className="flex h-14 items-center gap-3 bg-[#eef1f7] px-4 text-[#98a2b3]">
                                         <Lock className="h-4 w-4" />
                                         <input
+                                            value={password}
+                                            onChange={(e) => setPassword(e.target.value)}
                                             type="password"
                                             placeholder="••••••••••••"
                                             className="w-full bg-transparent text-[16px] text-[#111827] outline-none placeholder:text-[#b0b8c7]"
@@ -127,7 +150,7 @@ export default function LoginPage() {
 
 
                                 <Button
-                                    onClick={() => startHostedLogin()}
+                                    onClick={handleLogin}
                                     className="h-14 w-full rounded-[6px] bg-[#0d56c9] text-[18px] font-semibold text-white shadow-[0_8px_20px_rgba(13,86,201,0.28)] hover:bg-[#0b4db5]"
                                 >
                                     Sign In to Dashboard

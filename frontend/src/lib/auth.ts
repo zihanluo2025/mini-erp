@@ -2,8 +2,10 @@ import { Amplify } from "aws-amplify";
 import {
   fetchAuthSession,
   signInWithRedirect,
+  signIn,
   signOut,
 } from "aws-amplify/auth";
+
 
 const userPoolId = process.env.NEXT_PUBLIC_COGNITO_USER_POOL_ID!;
 const userPoolClientId = process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID!;
@@ -85,9 +87,31 @@ export async function startHostedLogin(options?: { redirectTo?: string }) {
   await signInWithRedirect();
 }
 
+export async function loginWithPassword(email: string, password: string) {
+  const res = await signIn({
+    username: email,
+    password,
+  });
+
+  return res;
+}
+
 export async function logout() {
+  try {
+    await signOut();
+  } catch (e) {
+    console.warn("signOut error", e);
+  }
+
+
+  localStorage.clear();
+  sessionStorage.clear();
+
+
   document.cookie = "erp_auth=; path=/; max-age=0";
-  await signOut({ global: true });
+
+  // Redirect to login page after logout
+  window.location.href = "/login";
 }
 
 export async function getAccessToken(): Promise<string | null> {
