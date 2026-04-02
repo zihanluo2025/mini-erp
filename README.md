@@ -18,9 +18,6 @@ Detailed documentation is maintained in Notion:
 - Identity & Security Design  
 
 
-# Architecture Overview
-<img width="1536" height="1024" alt="image" src="https://github.com/user-attachments/assets/d96302d1-c047-4f21-869a-b451ac145bf0" />
-
 
 # scrennshot
 <img width="2880" height="1558" alt="image" src="https://github.com/user-attachments/assets/6d1a69e3-e282-4188-ab5a-cfda93b31478" />
@@ -44,6 +41,9 @@ Detailed documentation is maintained in Notion:
 
 
 
+
+# Architecture Overview
+<img width="1536" height="1024" alt="image" src="https://github.com/user-attachments/assets/d96302d1-c047-4f21-869a-b451ac145bf0" />
 
 
 
