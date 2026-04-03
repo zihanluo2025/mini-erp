@@ -1,354 +1,474 @@
 "use client";
 
-// Comments in English.
+import { useMemo, useState } from "react";
+import {
+    AlertTriangle,
+    CheckCircle2,
+    Download,
+    Filter,
+    Package,
+    Plus,
+    Upload,
+    XCircle,
+} from "lucide-react";
 
-import * as React from "react";
-import type { ColumnDef, RowSelectionState } from "@tanstack/react-table";
-import { useRouter } from "next/navigation";
-
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import DataFilterBar from "@/components/common/data-filter-bar";
+import type { FilterField } from "@/components/common/data-filter-bar/types";
+import KpiCard from "@/components/common/kpi-card";
+import DataTable from "@/components/common/data-table";
 
-import { FilterBar } from "@/components/common/filter-bar";
-import { DataTable } from "@/components/common/data-table";
-
-import { pageProducts, deleteProduct } from "@/lib/apis/products";
-// If you have backend batch delete API, uncomment this:
-// import { batchDeleteProducts } from "@/lib/apis/products";
-
-type ProductRow = {
+type ProductItem = {
     id: string;
     name: string;
-    supplier: string;
-    origin: string;
+    sku: string;
+    category: "Hardware" | "Electronics" | "Raw Material";
     price: number;
     stock: number;
-    status: "Active" | "Inactive";
+    supplier: string;
+    updatedAt: string;
+    image: string;
 };
 
-export default function ProductsPage() {
-    // Filters
-    const [supplier, setSupplier] = React.useState("");
-    const [product, setProduct] = React.useState("");
+const productData: ProductItem[] = [
+    {
+        id: "1",
+        name: "Steel Chassis",
+        sku: "INB-CH-001",
+        category: "Hardware",
+        price: 450,
+        stock: 500,
+        supplier: "Allied Steel",
+        updatedAt: "Oct 12, 2023",
+        image: "https://images.unsplash.com/photo-1581092918056-0c4c3acd3789?q=80&w=200&auto=format&fit=crop",
+    },
+    {
+        id: "2",
+        name: "Precision Sensor",
+        sku: "ELE-SN-042",
+        category: "Electronics",
+        price: 89,
+        stock: 15,
+        supplier: "TechLogix",
+        updatedAt: "Oct 11, 2023",
+        image: "https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=200&auto=format&fit=crop",
+    },
+    {
+        id: "3",
+        name: "Circuit Board V2",
+        sku: "ELE-CB-015",
+        category: "Electronics",
+        price: 120,
+        stock: 0,
+        supplier: "MicroPhase",
+        updatedAt: "Oct 10, 2023",
+        image: "https://images.unsplash.com/photo-1563770660941-20978e870e26?q=80&w=200&auto=format&fit=crop",
+    },
+    {
+        id: "4",
+        name: "Aluminum Sheet",
+        sku: "RAW-AS-021",
+        category: "Raw Material",
+        price: 55,
+        stock: 130,
+        supplier: "MetalWorks",
+        updatedAt: "Oct 09, 2023",
+        image: "https://images.unsplash.com/photo-1517048676732-d65bc937f952?q=80&w=200&auto=format&fit=crop",
+    },
+    {
+        id: "5",
+        name: "Connector Kit",
+        sku: "ELE-CK-118",
+        category: "Electronics",
+        price: 39,
+        stock: 8,
+        supplier: "VoltEdge",
+        updatedAt: "Oct 08, 2023",
+        image: "https://images.unsplash.com/photo-1555617981-dac3880eac6e?q=80&w=200&auto=format&fit=crop",
+    },
+    {
+        id: "6",
+        name: "Support Bracket",
+        sku: "HRD-SB-203",
+        category: "Hardware",
+        price: 25,
+        stock: 260,
+        supplier: "Allied Steel",
+        updatedAt: "Oct 07, 2023",
+        image: "https://images.unsplash.com/photo-1530124566582-a618bc2615dc?q=80&w=200&auto=format&fit=crop",
+    },
+];
 
-    const router = useRouter();
+function cn(...classes: Array<string | false | undefined>) {
+    return classes.filter(Boolean).join(" ");
+}
 
-    // Table data (server page)
-    const [rows, setRows] = React.useState<ProductRow[]>([]);
-    const [loading, setLoading] = React.useState(false);
-    const [error, setError] = React.useState<string | null>(null);
+function getStockStatus(stock: number) {
+    if (stock === 0) return "Out of Stock";
+    if (stock <= 20) return "Low Stock";
+    return "In Stock";
+}
 
-    // Selection (TanStack uses rowId keys; by default rowId is row index string)
-    const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({});
-
-    // Pagination (cursor-based)
-    const [pageIndex, setPageIndex] = React.useState(0);
-    const [pageSize, setPageSize] = React.useState(10);
-
-    // cursorStack[i] is the cursor used to load page i
-    // page0 cursor is null (first page)
-    const [cursorStack, setCursorStack] = React.useState<(string | null)[]>([null]);
-    const [nextCursor, setNextCursor] = React.useState<string | null>(null);
-
-    // Delete state
-    const [loadingDelete, setLoadingDelete] = React.useState(false);
-
-    // Combine supplier + product into a single keyword (backend supports only one keyword)
-    const keyword = React.useMemo(() => {
-        const s = supplier.trim();
-        const p = product.trim();
-        if (s && p) return `${s} ${p}`;
-        return s || p || "";
-    }, [supplier, product]);
-
-    const loadPage = React.useCallback(
-        async (targetPageIndex: number, cursorOverride?: string | null) => {
-            setLoading(true);
-            setError(null);
-
-            const cursor = cursorOverride ?? (cursorStack[targetPageIndex] ?? null);
-
-            try {
-                const res = await pageProducts({
-                    keyword: keyword || undefined,
-                    limit: pageSize,
-                    cursor: cursor || undefined,
-                });
-
-                // NOTE: If backend dto differs from ProductRow, map here.
-                setRows(res.items as ProductRow[]);
-                setNextCursor(res.nextCursor ?? null);
-
-                setPageIndex(targetPageIndex);
-                setRowSelection({});
-            } catch (e: any) {
-                setError(e?.message ?? "Failed to load products");
-            } finally {
-                setLoading(false);
-            }
-        },
-        [cursorStack, keyword, pageSize]
-    );
-
-    // Initial load & when pageSize changes
-    React.useEffect(() => {
-        setCursorStack([null]);
-        setNextCursor(null);
-        void loadPage(0, null);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [pageSize]);
-
-    const handleSearch = React.useCallback(() => {
-        setCursorStack([null]);
-        setNextCursor(null);
-        void loadPage(0, null);
-    }, [loadPage]);
-
-    const handleReset = React.useCallback(() => {
-        setSupplier("");
-        setProduct("");
-        setCursorStack([null]);
-        setNextCursor(null);
-        void loadPage(0, null);
-    }, [loadPage]);
-
-    // Cursor paging doesn't know exact total; expose an approximate pageCount/totalCount.
-    const pageCount = nextCursor ? pageIndex + 2 : pageIndex + 1;
-    const totalCount = pageCount * pageSize;
-
-    const onPageChange = React.useCallback(
-        (nextIndex: number) => {
-            // Backward: cursor already known in cursorStack
-            if (nextIndex < pageIndex) {
-                void loadPage(nextIndex);
-                return;
-            }
-
-            // Forward
-            if (nextIndex > pageIndex) {
-                if (!nextCursor) return;
-
-                // Persist cursor for the next page
-                setCursorStack((prev) => {
-                    const copy = [...prev];
-                    copy[nextIndex] = nextCursor;
-                    return copy;
-                });
-
-                // Load immediately with cursor override (avoid async state timing)
-                void loadPage(nextIndex, nextCursor);
-            }
-        },
-        [loadPage, nextCursor, pageIndex]
-    );
-
-    const handleAdd = React.useCallback(() => {
-        router.push("/products/new");
-    }, [router]);
-
-    // Single delete
-    const handleDeleteOne = React.useCallback(
-        async (row: ProductRow) => {
-            if (!window.confirm(`Delete product "${row.name}"?`)) return;
-
-            setLoadingDelete(true);
-            setError(null);
-
-            try {
-                await deleteProduct(row.id);
-
-                // Safer for cursor paging: reload current page
-                const cursor = cursorStack[pageIndex] ?? null;
-                await loadPage(pageIndex, cursor);
-            } catch (err: any) {
-                setError(err?.message ?? "Delete failed");
-            } finally {
-                setLoadingDelete(false);
-            }
-        },
-        [cursorStack, loadPage, pageIndex]
-    );
-
-    // Batch delete (current page)
-    const handleBatchDelete = React.useCallback(async () => {
-        // TanStack selection keys are row ids; by default it's index string: "0", "1", ...
-        const selectedIndexes = Object.keys(rowSelection).filter((k) => rowSelection[k]);
-        const idsToDelete = selectedIndexes
-            .map((k) => rows[Number(k)]?.id)
-            .filter(Boolean) as string[];
-
-        if (idsToDelete.length === 0) return;
-        if (!window.confirm(`Delete ${idsToDelete.length} products?`)) return;
-
-        setLoadingDelete(true);
-        setError(null);
-
-        try {
-            // Option A: no backend batch API -> parallel delete
-            await Promise.all(idsToDelete.map((id) => deleteProduct(id)));
-
-            // Option B: if you have backend batch API, use it:
-            // await batchDeleteProducts(idsToDelete);
-
-            // Reload current page after delete
-            const cursor = cursorStack[pageIndex] ?? null;
-            await loadPage(pageIndex, cursor);
-        } catch (err: any) {
-            setError(err?.message ?? "Batch delete failed");
-        } finally {
-            setLoadingDelete(false);
-        }
-    }, [cursorStack, loadPage, pageIndex, rowSelection, rows]);
-
-    const hasSelected = React.useMemo(
-        () => Object.values(rowSelection).some(Boolean),
-        [rowSelection]
-    );
-
-    // Columns inside component to access handlers/states
-    const columns = React.useMemo<ColumnDef<ProductRow>[]>(() => {
-        return [
-            // {
-            //     accessorKey: "id",
-            //     header: "No.",
-            //     cell: ({ row }) => (
-            //         <span className="text-muted-foreground">{row.original.id}</span>
-            //     ),
-            // },
-            { accessorKey: "name", header: "Product Name" },
-            { accessorKey: "supplier", header: "Supplier" },
-            { accessorKey: "origin", header: "Origin" },
-            {
-                accessorKey: "price",
-                header: "Price",
-                cell: ({ row }) => (
-                    <span className="tabular-nums">${row.original.price}</span>
-                ),
-            },
-            {
-                accessorKey: "stock",
-                header: "Stock",
-                cell: ({ row }) => (
-                    <span className="tabular-nums">{row.original.stock}</span>
-                ),
-            },
-            {
-                accessorKey: "status",
-                header: "Status",
-                cell: ({ row }) =>
-                    row.original.status === "Active" ? (
-                        <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
-                            Active
-                        </Badge>
-                    ) : (
-                        <Badge variant="secondary">Inactive</Badge>
-                    ),
-            },
-            {
-                id: "actions",
-                header: "Actions",
-                cell: ({ row }) => (
-                    <div className="flex gap-2 justify-end">
-                        <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => router.push(`/products/${row.original.id}/edit`)}
-                            disabled={loading || loadingDelete}
-                        >
-                            Edit
-                        </Button>
-                        <Button
-                            size="sm"
-                            variant="destructive"
-                            disabled={loading || loadingDelete}
-                            onClick={() => void handleDeleteOne(row.original)}
-                        >
-                            Delete
-                        </Button>
-                    </div>
-                ),
-            },
-        ];
-    }, [handleDeleteOne, loading, loadingDelete, router]);
+function CategoryBadge({ category }: { category: ProductItem["category"] }) {
+    const classMap = {
+        Hardware: "bg-[#DCEBFF] text-[#2D6BCF]",
+        Electronics: "bg-[#DCEBFF] text-[#2D6BCF]",
+        "Raw Material": "bg-[#E8DFFC] text-[#6C5AAE]",
+    };
 
     return (
-        <div className="space-y-4">
-            <FilterBar
-                fields={
-                    <>
-                        <Input
-                            className="w-[240px]"
-                            placeholder="Please enter supplier name"
-                            value={supplier}
-                            onChange={(e) => setSupplier(e.target.value)}
-                            disabled={loading || loadingDelete}
-                        />
-                        <Input
-                            className="w-[240px]"
-                            placeholder="Please enter product name"
-                            value={product}
-                            onChange={(e) => setProduct(e.target.value)}
-                            disabled={loading || loadingDelete}
-                        />
-                    </>
-                }
-                primaryActions={[
-                    {
-                        key: "search",
-                        label: "Search",
-                        variant: "secondary",
-                        onClick: handleSearch,
-                        disabled: loading || loadingDelete,
-                    },
-                    {
-                        key: "reset",
-                        label: "Reset",
-                        variant: "outline",
-                        onClick: handleReset,
-                        disabled: loading || loadingDelete,
-                    },
-                ]}
-            />
+        <span
+            className={cn(
+                "inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold",
+                classMap[category]
+            )}
+        >
+            {category}
+        </span>
+    );
+}
 
-            {error ? (
-                <div className="rounded-md border p-3 text-sm text-red-600">{error}</div>
-            ) : null}
+function StockStatusBadge({ stock }: { stock: number }) {
+    const status = getStockStatus(stock);
 
-            <DataTable
-                columns={columns}
-                data={rows}
-                enableRowSelection
-                rowSelection={rowSelection}
-                onRowSelectionChange={setRowSelection}
-                pageIndex={pageIndex}
-                pageSize={pageSize}
-                pageCount={pageCount}
-                totalCount={totalCount}
-                onPageChange={onPageChange}
-                onPageSizeChange={(s) => {
-                    setPageSize(s);
-                    setPageIndex(0);
-                    setRowSelection({});
-                }}
-                loading={loading || loadingDelete}
-                actions={[
-                    {
-                        key: "add",
-                        label: "Add",
-                        variant: "secondary",
-                        onClick: handleAdd,
-                        disabled: loading || loadingDelete,
-                    },
-                    {
-                        key: "batchDel",
-                        label: loadingDelete ? "Deleting..." : "Batch Delete",
-                        variant: "destructive",
-                        disabled: !hasSelected || loading || loadingDelete,
-                        onClick: () => void handleBatchDelete(),
-                    },
-                ]}
-            />
+    const statusClassMap = {
+        "In Stock": "border-emerald-200 bg-emerald-50 text-emerald-700",
+        "Low Stock": "border-orange-200 bg-orange-50 text-orange-600",
+        "Out of Stock": "border-rose-200 bg-rose-50 text-rose-600",
+    };
+
+    const dotClassMap = {
+        "In Stock": "bg-emerald-500",
+        "Low Stock": "bg-orange-500",
+        "Out of Stock": "bg-rose-500",
+    };
+
+    return (
+        <span
+            className={cn(
+                "inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-bold",
+                statusClassMap[status]
+            )}
+        >
+            <span className={cn("h-2 w-2 rounded-full", dotClassMap[status])} />
+            {status}
+        </span>
+    );
+}
+
+function ProductCell({ item }: { item: ProductItem }) {
+    return (
+        <div className="flex items-center gap-4">
+            <div className="h-12 w-12 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+                <img
+                    src={item.image}
+                    alt={item.name}
+                    className="h-full w-full object-cover"
+                />
+            </div>
+
+            <div>
+                <button className="text-left text-[18px] font-bold leading-7 text-[#183B6B] hover:underline">
+                    {item.name}
+                </button>
+            </div>
+        </div>
+    );
+}
+
+export default function ProductsPage() {
+    const [search, setSearch] = useState("");
+    const [currentPage, setCurrentPage] = useState(1);
+    const [category, setCategory] = useState("all");
+    const [stockStatus, setStockStatus] = useState("all");
+    const [supplier, setSupplier] = useState("all");
+
+    const pageSize = 3;
+
+    const filteredData = useMemo(() => {
+        const keyword = search.trim().toLowerCase();
+
+        return productData.filter((item) => {
+            const matchKeyword =
+                !keyword ||
+                item.name.toLowerCase().includes(keyword) ||
+                item.sku.toLowerCase().includes(keyword) ||
+                item.category.toLowerCase().includes(keyword);
+
+            const matchCategory =
+                category === "all" ||
+                item.category.toLowerCase().replace(/\s+/g, "-") === category;
+
+            const currentStockStatus = getStockStatus(item.stock)
+                .toLowerCase()
+                .replace(/\s+/g, "-");
+
+            const matchStockStatus =
+                stockStatus === "all" || currentStockStatus === stockStatus;
+
+            const normalizedSupplier = item.supplier.toLowerCase().replace(/\s+/g, "-");
+            const matchSupplier =
+                supplier === "all" || normalizedSupplier === supplier;
+
+            return matchKeyword && matchCategory && matchStockStatus && matchSupplier;
+        });
+    }, [search, category, stockStatus, supplier]);
+
+    const totalPages = Math.max(1, Math.ceil(filteredData.length / pageSize));
+
+    const pagedData = useMemo(() => {
+        const start = (currentPage - 1) * pageSize;
+        return filteredData.slice(start, start + pageSize);
+    }, [filteredData, currentPage]);
+
+    const filterFields: FilterField[] = [
+        {
+            key: "search",
+            type: "search",
+            value: search,
+            onChange: (value) => {
+                setSearch(value);
+                setCurrentPage(1);
+            },
+            placeholder: "Search Product Name / SKU / Category",
+        },
+        {
+            key: "category",
+            type: "select",
+            label: "",
+            value: category,
+            onChange: (value) => {
+                setCategory(value);
+                setCurrentPage(1);
+            },
+            options: [
+                { label: "All Categories", value: "all" },
+                { label: "Hardware", value: "hardware" },
+                { label: "Electronics", value: "electronics" },
+                { label: "Raw Material", value: "raw-material" },
+            ],
+        },
+        {
+            key: "stockStatus",
+            type: "select",
+            label: "",
+            value: stockStatus,
+            onChange: (value) => {
+                setStockStatus(value);
+                setCurrentPage(1);
+            },
+            options: [
+                { label: "Stock Status: All", value: "all" },
+                { label: "In Stock", value: "in-stock" },
+                { label: "Low Stock", value: "low-stock" },
+                { label: "Out of Stock", value: "out-of-stock" },
+            ],
+        },
+        {
+            key: "supplier",
+            type: "select",
+            label: "",
+            value: supplier,
+            onChange: (value) => {
+                setSupplier(value);
+                setCurrentPage(1);
+            },
+            options: [
+                { label: "All Suppliers", value: "all" },
+                { label: "Allied Steel", value: "allied-steel" },
+                { label: "TechLogix", value: "techlogix" },
+                { label: "MicroPhase", value: "microphase" },
+                { label: "MetalWorks", value: "metalworks" },
+                { label: "VoltEdge", value: "voltedge" },
+            ],
+        },
+    ];
+
+    const columns = [
+        {
+            key: "product",
+            title: "Product",
+            render: (item: ProductItem) => <ProductCell item={item} />,
+        },
+        {
+            key: "sku",
+            title: "SKU",
+            className: "text-[15px] font-medium text-[#32577E]",
+            render: (item: ProductItem) => (
+                <span className="whitespace-pre-line break-words">{item.sku.replace(/-/g, "-\n")}</span>
+            ),
+        },
+        {
+            key: "category",
+            title: "Category",
+            render: (item: ProductItem) => <CategoryBadge category={item.category} />,
+        },
+        {
+            key: "price",
+            title: "Price",
+            className: "text-[18px] font-bold text-[#183B6B]",
+            render: (item: ProductItem) => `$${item.price.toFixed(2)}`,
+        },
+        {
+            key: "stock",
+            title: "Stock",
+            className: "text-[18px] font-semibold text-[#183B6B]",
+            render: (item: ProductItem) => item.stock,
+        },
+        {
+            key: "status",
+            title: "Status",
+            render: (item: ProductItem) => <StockStatusBadge stock={item.stock} />,
+        },
+        {
+            key: "supplier",
+            title: "Supplier",
+            className: "text-[16px] font-medium text-[#32577E]",
+            render: (item: ProductItem) => item.supplier,
+        },
+        {
+            key: "updatedAt",
+            title: "Updated",
+            className: "text-[16px] font-medium text-[#2D6BCF]",
+            render: (item: ProductItem) => (
+                <span className="whitespace-pre-line">{item.updatedAt.replace(", ", ",\n")}</span>
+            ),
+        },
+    ];
+
+    return (
+        <div className="min-h-screen bg-[#F6F8FC]">
+            <div className="mx-auto w-full max-w-[1440px] space-y-6">
+                <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+                    <div>
+                        <h1 className="text-3xl font-semibold tracking-tight text-[var(--erp-text)]">
+                            Products
+                        </h1>
+                        <p className="max-w-[760px] text-base text-[var(--erp-text-secondary)]">
+                            Product catalog, pricing, and stock levels with architectural precision across your global inventory.
+                        </p>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-3">
+                        <Button
+                            variant="outline"
+                            className="h-12 rounded-sm border-[#D7E4FF] bg-[#EAF1FF] px-5 text-[15px] font-semibold text-[#183B6B] hover:bg-[#DFE9FF]"
+                        >
+                            <Upload className="mr-2 h-4 w-4" />
+                            Import
+                        </Button>
+
+                        <Button
+                            variant="outline"
+                            className="h-12 rounded-sm border-[#D7E4FF] bg-[#EAF1FF] px-5 text-[15px] font-semibold text-[#183B6B] hover:bg-[#DFE9FF]"
+                        >
+                            <Download className="mr-2 h-4 w-4" />
+                            Export
+                        </Button>
+
+                        <Button className="h-12 rounded-sm bg-[#175CFF] px-6 text-[15px] font-semibold text-white shadow-md shadow-blue-300/40 hover:bg-[#0F4FE8]">
+                            <Plus className="mr-2 h-4 w-4" />
+                            Add Product
+                        </Button>
+                    </div>
+                </div>
+
+                <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+                    <KpiCard
+                        title="Total Products"
+                        value="1,248"
+                        description=""
+                        rightIcon={
+                            <div className="flex items-center gap-3">
+                                <div className="rounded-lg bg-[#EEF4FF] p-3 text-[#5B7BEA]">
+                                    <Package className="h-5 w-5" />
+                                </div>
+                                <span className="rounded-full bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-600">
+                                    +12% vs last month
+                                </span>
+                            </div>
+                        }
+                    />
+
+                    <KpiCard
+                        title="In Stock"
+                        value="1,180"
+                        description=""
+                        rightIcon={
+                            <div className="flex items-center gap-3">
+                                <div className="rounded-lg bg-emerald-50 p-3 text-emerald-600">
+                                    <CheckCircle2 className="h-5 w-5" />
+                                </div>
+                                <span className="rounded-full bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-600">
+                                    Normal
+                                </span>
+                            </div>
+                        }
+                    />
+
+                    <KpiCard
+                        title="Low Stock"
+                        value="42"
+                        description=""
+                        rightIcon={
+                            <div className="flex items-center gap-3">
+                                <div className="rounded-lg bg-orange-50 p-3 text-orange-500">
+                                    <AlertTriangle className="h-5 w-5" />
+                                </div>
+                                <span className="rounded-full bg-orange-50 px-3 py-1 text-sm font-semibold text-orange-500">
+                                    Warning status
+                                </span>
+                            </div>
+                        }
+                    />
+
+                    <KpiCard
+                        title="Out of Stock"
+                        value="26"
+                        description=""
+                        rightIcon={
+                            <div className="flex items-center gap-3">
+                                <div className="rounded-lg bg-rose-50 p-3 text-rose-500">
+                                    <XCircle className="h-5 w-5" />
+                                </div>
+                                <span className="rounded-full bg-rose-50 px-3 py-1 text-sm font-semibold text-rose-500">
+                                    Critical status
+                                </span>
+                            </div>
+                        }
+                    />
+                </div>
+
+                <DataFilterBar
+                    fields={filterFields}
+                    actionSlot={
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-12 w-12 rounded-xl bg-[#EAF1FF] text-[#5B7BEA] hover:bg-[#DFE9FF]"
+                        >
+                            <Filter className="h-5 w-5" />
+                        </Button>
+                    }
+                />
+
+                <DataTable
+                    data={pagedData}
+                    columns={columns}
+                    rowKey={(row: ProductItem) => row.id}
+                    selectable={false}
+                    emptyText="No products found"
+                    footerLeft={`Showing ${filteredData.length === 0 ? 0 : (currentPage - 1) * pageSize + 1
+                        } to ${Math.min(currentPage * pageSize, filteredData.length)} of ${filteredData.length} products`}
+                    pagination={{
+                        currentPage,
+                        totalPages,
+                        totalItems: filteredData.length,
+                        pageSize,
+                        onPageChange: setCurrentPage,
+                    }}
+                />
+            </div>
         </div>
     );
 }

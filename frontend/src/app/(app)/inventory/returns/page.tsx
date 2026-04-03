@@ -1,214 +1,453 @@
 "use client";
 
-// Comments in English.
+import { useMemo, useState } from "react";
+import {
+    Ban,
+    CalendarDays,
+    Download,
+    Filter,
+    Plus,
+    RotateCcw,
+    Search,
+    ClipboardCheck,
+    AlertTriangle,
+    MoreVertical,
+} from "lucide-react";
 
-import * as React from "react";
-import type { ColumnDef, RowSelectionState } from "@tanstack/react-table";
-
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import KpiCard from "@/components/common/kpi-card";
+import DataTable from "@/components/common/data-table";
 
-import { FilterBar } from "@/components/common/filter-bar";
-import { DataTable } from "@/components/common/data-table";
+type ReturnType = "Customer" | "Supplier";
+type ReturnStatus = "Inspecting" | "Completed" | "Rejected";
 
-type TableRow = {
+type ReturnItem = {
     id: string;
-    name: string;
-    supplier: string;
-    origin: string;
-    price: number;
-    stock: number;
-    status: "Active" | "Inactive";
+    returnNo: string;
+    type: ReturnType;
+    partnerName: string;
+    partnerRole: string;
+    partnerInitials: string;
+    productName: string;
+    productMeta: string;
+    qty: number;
+    requestedAt: string;
+    status: ReturnStatus;
 };
 
-const mockData: TableRow[] = [
-    { id: "9", name: "Walnut", supplier: "ABC Foods", origin: "VIC", price: 100, stock: 120, status: "Active" },
-    { id: "8", name: "Spiced Beef", supplier: "ABC Foods", origin: "NSW", price: 100, stock: 100, status: "Active" },
-    { id: "7", name: "Orange Juice", supplier: "Fresh Co", origin: "SA", price: 6, stock: 280, status: "Active" },
-    { id: "6", name: "Milk 2L", supplier: "Dairy Best", origin: "VIC", price: 4, stock: 60, status: "Inactive" },
-    { id: "5", name: "Rice 5kg", supplier: "Good Grains", origin: "QLD", price: 18, stock: 42, status: "Active" },
-    { id: "4", name: "Soy Sauce", supplier: "ABC Foods", origin: "NSW", price: 8, stock: 150, status: "Active" },
+const returnData: ReturnItem[] = [
+    {
+        id: "1",
+        returnNo: "RET-2023-4412",
+        type: "Customer",
+        partnerName: "Johnathan Doe",
+        partnerRole: "Retail Channel",
+        partnerInitials: "JD",
+        productName: "Quantum Pro Headphone",
+        productMeta: "Serial: #QN-88219",
+        qty: 1,
+        requestedAt: "24 Oct, 09:45 AM",
+        status: "Inspecting",
+    },
+    {
+        id: "2",
+        returnNo: "RET-2023-4410",
+        type: "Supplier",
+        partnerName: "Astro Logistics Ltd.",
+        partnerRole: "Core Supplier",
+        partnerInitials: "AL",
+        productName: "Mainboard X-200 Chipsets",
+        productMeta: "Bulk Lot #A-22",
+        qty: 450,
+        requestedAt: "22 Oct, 03:20 PM",
+        status: "Completed",
+    },
+    {
+        id: "3",
+        returnNo: "RET-2023-4398",
+        type: "Customer",
+        partnerName: "Sarah Miller",
+        partnerRole: "Private Client",
+        partnerInitials: "SM",
+        productName: "Titan Mesh Chair (Black)",
+        productMeta: "SKU: TM-420-B",
+        qty: 1,
+        requestedAt: "20 Oct, 11:15 AM",
+        status: "Rejected",
+    },
+    {
+        id: "4",
+        returnNo: "RET-2023-4386",
+        type: "Supplier",
+        partnerName: "Northline Components",
+        partnerRole: "Electronics Vendor",
+        partnerInitials: "NC",
+        productName: "Sensor Module Batch",
+        productMeta: "PO Ref: SUP-1192",
+        qty: 120,
+        requestedAt: "18 Oct, 02:00 PM",
+        status: "Inspecting",
+    },
 ];
 
-const columns: ColumnDef<TableRow>[] = [
-    {
-        accessorKey: "id",
-        header: "No.",
-        cell: ({ row }) => <span className="text-muted-foreground">{row.original.id}</span>,
-    },
-    { accessorKey: "name", header: "Product Name" },
-    { accessorKey: "supplier", header: "Supplier" },
-    { accessorKey: "origin", header: "Origin" },
-    {
-        accessorKey: "price",
-        header: "Price",
-        cell: ({ row }) => <span className="tabular-nums">${row.original.price}</span>,
-    },
-    {
-        accessorKey: "stock",
-        header: "Stock",
-        cell: ({ row }) => <span className="tabular-nums">{row.original.stock}</span>,
-    },
-    {
-        accessorKey: "status",
-        header: "Status",
-        cell: ({ row }) =>
-            row.original.status === "Active" ? (
-                <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">Active</Badge>
-            ) : (
-                <Badge variant="secondary">Inactive</Badge>
-            ),
-    },
-    {
-        id: "actions",
-        header: "Actions",
-        cell: ({ row }) => (
-            <div className="flex gap-2 justify-end">
-                <Button size="sm" variant="outline" onClick={() => console.log("edit", row.original.id)}>
-                    Edit
-                </Button>
-                <Button size="sm" variant="destructive" onClick={() => console.log("delete", row.original.id)}>
-                    Delete
-                </Button>
-            </div>
-        ),
-    },
-];
+function cn(...classes: Array<string | false | undefined>) {
+    return classes.filter(Boolean).join(" ");
+}
 
-export default function ReturnsPage() {
-    // Filters
-    const [supplier, setSupplier] = React.useState("");
-    const [product, setProduct] = React.useState("");
-
-    // Table data (local mock)
-    const [rows, setRows] = React.useState<TableRow[]>(mockData);
-
-    // Selection
-    const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({});
-
-    // Pagination
-    const [pageIndex, setPageIndex] = React.useState(0);
-    const [pageSize, setPageSize] = React.useState(10);
-
-    // Filtered rows (client-side)
-    const filteredRows = React.useMemo(() => {
-        const s = supplier.trim().toLowerCase();
-        const p = product.trim().toLowerCase();
-
-        return rows.filter((r) => {
-            const okSupplier = !s || r.supplier.toLowerCase().includes(s);
-            const okProduct = !p || r.name.toLowerCase().includes(p);
-            return okSupplier && okProduct;
-        });
-    }, [rows, supplier, product]);
-
-    // Paging (client-side)
-    const totalCount = filteredRows.length;
-    const pageCount = Math.max(1, Math.ceil(totalCount / pageSize));
-
-    // Keep pageIndex in range when filters/pageSize change
-    React.useEffect(() => {
-        setPageIndex((prev) => Math.min(prev, pageCount - 1));
-    }, [pageCount]);
-
-    const pageData = React.useMemo(() => {
-        const start = pageIndex * pageSize;
-        return filteredRows.slice(start, start + pageSize);
-    }, [filteredRows, pageIndex, pageSize]);
-
-    // Selected row ids (TanStack uses row index keys, not your id)
-    const selectedRowIndexes = Object.keys(rowSelection).filter((k) => (rowSelection as Record<string, boolean>)[k]);
-    const hasSelected = selectedRowIndexes.length > 0;
-
-    function handleSearch() {
-        // For mock filtering, nothing special to do (it's reactive),
-        // but we reset to first page to match typical UX.
-        setPageIndex(0);
-    }
-
-    function handleReset() {
-        setSupplier("");
-        setProduct("");
-        setPageIndex(0);
-    }
-
-    function handleAdd() {
-        // Mock add a new row
-        const newId = String(Date.now()).slice(-6);
-        const newRow: TableRow = {
-            id: newId,
-            name: `New Product ${newId}`,
-            supplier: "New Supplier",
-            origin: "SA",
-            price: 1,
-            stock: 1,
-            status: "Active",
-        };
-        setRows((prev) => [newRow, ...prev]);
-        setPageIndex(0);
-        setRowSelection({});
-    }
-
-    function handleBatchDelete() {
-        // Because rowSelection is based on current page row indexes,
-        // we delete by mapping selected row indexes to actual row ids in pageData.
-        const idsToDelete = selectedRowIndexes
-            .map((idx) => pageData[Number(idx)]?.id)
-            .filter(Boolean) as string[];
-
-        if (idsToDelete.length === 0) return;
-
-        setRows((prev) => prev.filter((r) => !idsToDelete.includes(r.id)));
-        setRowSelection({});
-    }
+function ReturnTypeBadge({ type }: { type: ReturnType }) {
+    const map = {
+        Customer: "bg-[#DCEBFF] text-[#2563EB]",
+        Supplier: "bg-slate-100 text-slate-500",
+    };
 
     return (
-        <div className="space-y-4">
-            <FilterBar
-                fields={
-                    <>
-                        <Input
-                            className="w-[240px]"
-                            placeholder="Please enter supplier name"
-                            value={supplier}
-                            onChange={(e) => setSupplier(e.target.value)}
-                        />
-                        <Input
-                            className="w-[240px]"
-                            placeholder="Please enter product name"
-                            value={product}
-                            onChange={(e) => setProduct(e.target.value)}
-                        />
-                    </>
-                }
-                primaryActions={[
-                    { key: "search", label: "Search", variant: "secondary", onClick: handleSearch },
-                    { key: "reset", label: "Reset", variant: "outline", onClick: handleReset },
-                ]}
-            />
+        <span
+            className={cn(
+                "inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold",
+                map[type]
+            )}
+        >
+            {type}
+        </span>
+    );
+}
 
-            <DataTable
-                columns={columns}
-                data={pageData}
-                enableRowSelection
-                rowSelection={rowSelection}
-                onRowSelectionChange={setRowSelection}
-                pageIndex={pageIndex}
-                pageSize={pageSize}
-                pageCount={pageCount}
-                totalCount={totalCount}
-                onPageChange={setPageIndex}
-                onPageSizeChange={(s) => {
-                    setPageSize(s);
-                    setPageIndex(0);
-                    setRowSelection({});
-                }}
-                actions={[
-                    { key: "add", label: "Add", variant: "secondary", onClick: handleAdd },
-                    { key: "batchDel", label: "Batch Delete", variant: "destructive", disabled: !hasSelected, onClick: handleBatchDelete },
-                ]}
-            />
+function ReturnStatusBadge({ status }: { status: ReturnStatus }) {
+    const classMap = {
+        Inspecting: "border-orange-200 bg-orange-50 text-orange-600",
+        Completed: "border-emerald-200 bg-emerald-50 text-emerald-600",
+        Rejected: "border-rose-200 bg-rose-50 text-rose-600",
+    };
+
+    const dotMap = {
+        Inspecting: "bg-orange-500",
+        Completed: "bg-emerald-500",
+        Rejected: "bg-rose-500",
+    };
+
+    return (
+        <span
+            className={cn(
+                "inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-bold",
+                classMap[status]
+            )}
+        >
+            <span className={cn("h-2 w-2 rounded-full", dotMap[status])} />
+            {status}
+        </span>
+    );
+}
+
+function PartnerCell({ item }: { item: ReturnItem }) {
+    return (
+        <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-sm font-bold text-slate-500">
+                {item.partnerInitials}
+            </div>
+
+            <div>
+                <div className="text-[15px] font-semibold leading-5 text-[#183B6B]">
+                    {item.partnerName}
+                </div>
+                <div className="text-sm text-[#4F7AB8]">{item.partnerRole}</div>
+            </div>
+        </div>
+    );
+}
+
+function ProductCell({ item }: { item: ReturnItem }) {
+    return (
+        <div>
+            <div className="text-[15px] font-semibold leading-6 text-[#183B6B]">
+                {item.productName}
+            </div>
+            <div className="text-sm text-[#4F7AB8]">{item.productMeta}</div>
+        </div>
+    );
+}
+
+function ActionCell() {
+    return (
+        <button className="text-slate-400 transition hover:text-[#175CFF]">
+            <MoreVertical className="h-5 w-5" />
+        </button>
+    );
+}
+
+function ReturnsFilterPanel({
+    search,
+    onSearchChange,
+}: {
+    search: string;
+    onSearchChange: (value: string) => void;
+}) {
+    return (
+        <div className="rounded-3xl border border-slate-200/70 bg-[#EEF3FB] p-6 shadow-sm">
+            <div className="grid gap-6 lg:grid-cols-[1.3fr_1fr_1fr]">
+                <div>
+                    <p className="mb-3 text-xs font-bold uppercase tracking-[0.14em] text-[#5E7AA2]">
+                        Search Returns
+                    </p>
+                    <div className="relative">
+                        <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                        <Input
+                            value={search}
+                            onChange={(e) => onSearchChange(e.target.value)}
+                            placeholder="Return No / Product / Customer..."
+                            className="h-12 rounded-xl border border-slate-200 bg-white pl-11 text-sm shadow-none placeholder:text-slate-400"
+                        />
+                    </div>
+                </div>
+
+                <div>
+                    <p className="mb-3 text-xs font-bold uppercase tracking-[0.14em] text-[#5E7AA2]">
+                        Return Type
+                    </p>
+                    <Button
+                        variant="outline"
+                        className="h-12 w-full justify-between rounded-xl border-slate-200 bg-white px-4 text-[#183B6B] hover:bg-slate-50"
+                    >
+                        <span className="font-medium">All Types</span>
+                        <span className="text-slate-400">⌄</span>
+                    </Button>
+                </div>
+
+                <div>
+                    <p className="mb-3 text-xs font-bold uppercase tracking-[0.14em] text-[#5E7AA2]">
+                        Status
+                    </p>
+                    <Button
+                        variant="outline"
+                        className="h-12 w-full justify-between rounded-xl border-slate-200 bg-white px-4 text-[#183B6B] hover:bg-slate-50"
+                    >
+                        <span className="font-medium">All Statuses</span>
+                        <span className="text-slate-400">⌄</span>
+                    </Button>
+                </div>
+            </div>
+
+            <div className="mt-6 flex flex-col gap-4 lg:flex-row lg:items-end">
+                <div className="w-full lg:max-w-[260px]">
+                    <p className="mb-3 text-xs font-bold uppercase tracking-[0.14em] text-[#5E7AA2]">
+                        Date Range
+                    </p>
+                    <Button
+                        variant="outline"
+                        className="h-12 w-full justify-start rounded-xl border-slate-200 bg-white px-4 text-[#183B6B] hover:bg-slate-50"
+                    >
+                        <CalendarDays className="mr-2 h-4 w-4" />
+                        Oct 01, 2023 - Oct 31, 2023
+                    </Button>
+                </div>
+
+                <Button className="h-12 rounded-xl bg-[#0B3A6E] px-8 text-white hover:bg-[#082C53]">
+                    Apply
+                </Button>
+            </div>
+        </div>
+    );
+}
+
+export default function ReturnsPage() {
+    const [search, setSearch] = useState("");
+    const [currentPage, setCurrentPage] = useState(1);
+
+    const pageSize = 4;
+
+    const filteredData = useMemo(() => {
+        const keyword = search.trim().toLowerCase();
+
+        if (!keyword) return returnData;
+
+        return returnData.filter(
+            (item) =>
+                item.returnNo.toLowerCase().includes(keyword) ||
+                item.productName.toLowerCase().includes(keyword) ||
+                item.partnerName.toLowerCase().includes(keyword)
+        );
+    }, [search]);
+
+    const totalPages = Math.max(1, Math.ceil(filteredData.length / pageSize));
+
+    const pagedData = useMemo(() => {
+        const start = (currentPage - 1) * pageSize;
+        return filteredData.slice(start, start + pageSize);
+    }, [filteredData, currentPage]);
+
+    const columns = [
+        {
+            key: "returnNo",
+            title: "Return No",
+            render: (item: ReturnItem) => (
+                <button className="max-w-[120px] text-left text-[16px] font-bold leading-8 text-[#175CFF] hover:underline">
+                    {item.returnNo.replace(/-/g, "-\n")}
+                </button>
+            ),
+        },
+        {
+            key: "type",
+            title: "Type",
+            render: (item: ReturnItem) => <ReturnTypeBadge type={item.type} />,
+        },
+        {
+            key: "partner",
+            title: "Source / Partner",
+            render: (item: ReturnItem) => <PartnerCell item={item} />,
+        },
+        {
+            key: "product",
+            title: "Product & Items",
+            render: (item: ReturnItem) => <ProductCell item={item} />,
+        },
+        {
+            key: "qty",
+            title: "Qty",
+            className: "text-[16px] font-medium text-[#183B6B]",
+            render: (item: ReturnItem) => String(item.qty).padStart(2, "0"),
+        },
+        {
+            key: "requestedAt",
+            title: "Requested",
+            className: "text-[16px] font-medium text-[#4F6786]",
+            render: (item: ReturnItem) => (
+                <span className="whitespace-pre-line">
+                    {item.requestedAt.replace(", ", ",\n")}
+                </span>
+            ),
+        },
+        {
+            key: "status",
+            title: "Status",
+            render: (item: ReturnItem) => <ReturnStatusBadge status={item.status} />,
+        },
+        {
+            key: "actions",
+            title: "",
+            render: () => <ActionCell />,
+        },
+    ];
+
+    return (
+        <div className="min-h-screen bg-[#F6F8FC]">
+            <div className="mx-auto w-full max-w-[1440px] space-y-6">
+
+
+                {/* header */}
+                <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+                    <div>
+                        <h1 className="text-3xl font-semibold tracking-tight text-[var(--erp-text)]">
+                            Returns
+                        </h1>
+                        <p className="max-w-[760px] text-base text-[var(--erp-text-secondary)]">
+                            Manage and track customer and supplier return records.
+                        </p>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-3">
+                        <Button
+                            variant="outline"
+                            className="h-12 rounded-sm border-[#D7E4FF] bg-[#EAF1FF] px-5 text-[15px] font-semibold text-[#183B6B] hover:bg-[#DFE9FF]"
+                        >
+                            <Download className="mr-2 h-4 w-4" />
+                            Export
+                        </Button>
+
+                        <Button className="h-12 rounded-sm bg-[#175CFF] px-6 text-[15px] font-semibold text-white shadow-md shadow-blue-300/40 hover:bg-[#0F4FE8]">
+                            <Plus className="mr-2 h-4 w-4" />
+                            Create Return
+                        </Button>
+                    </div>
+                </div>
+
+                {/* kpi */}
+                <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+                    <KpiCard
+                        title="Returns This Month"
+                        value="42"
+                        description=""
+                        rightIcon={
+                            <div className="flex items-center gap-3">
+                                <div className="rounded-lg bg-[#EEF4FF] p-3 text-[#2563EB]">
+                                    <ClipboardCheck className="h-5 w-5" />
+                                </div>
+                                <span className="rounded-full bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-600">
+                                    +12% vs LY
+                                </span>
+                            </div>
+                        }
+                    />
+
+                    <KpiCard
+                        title="Pending Inspection"
+                        value="8"
+                        description=""
+                        rightIcon={
+                            <div className="flex items-center gap-3">
+                                <div className="rounded-lg bg-orange-50 p-3 text-orange-500">
+                                    <AlertTriangle className="h-5 w-5" />
+                                </div>
+                                <span className="rounded-full bg-rose-50 px-3 py-1 text-sm font-semibold text-[#A94442]">
+                                    Urgent
+                                </span>
+                            </div>
+                        }
+                    />
+
+                    <KpiCard
+                        title="Refunded"
+                        value="15"
+                        description=""
+                        rightIcon={
+                            <div className="flex items-center gap-3">
+                                <div className="rounded-lg bg-[#F2EAFE] p-3 text-[#6E56A8]">
+                                    <RotateCcw className="h-5 w-5" />
+                                </div>
+                                <span className="rounded-full bg-[#EAF1FF] px-3 py-1 text-sm font-semibold text-[#5E7AA2]">
+                                    In Sync
+                                </span>
+                            </div>
+                        }
+                    />
+
+                    <KpiCard
+                        title="Rejected Returns"
+                        value="2"
+                        description=""
+                        rightIcon={
+                            <div className="flex items-center gap-3">
+                                <div className="rounded-lg bg-[#EEF4FF] p-3 text-[#0B3A6E]">
+                                    <Ban className="h-5 w-5" />
+                                </div>
+                                <span className="rounded-full bg-[#EAF1FF] px-3 py-1 text-sm font-semibold text-[#2563EB]">
+                                    Active
+                                </span>
+                            </div>
+                        }
+                    />
+                </div>
+
+                {/* filter panel */}
+                <ReturnsFilterPanel search={search} onSearchChange={setSearch} />
+
+                {/* table */}
+                <DataTable
+                    data={pagedData}
+                    columns={columns}
+                    rowKey={(row: ReturnItem) => row.id}
+                    selectable={false}
+                    emptyText="No return records found"
+                    footerLeft={`Showing ${filteredData.length === 0 ? 0 : (currentPage - 1) * pageSize + 1
+                        } to ${Math.min(currentPage * pageSize, filteredData.length)} of ${filteredData.length} return records`}
+                    pagination={{
+                        currentPage,
+                        totalPages,
+                        totalItems: filteredData.length,
+                        pageSize,
+                        onPageChange: setCurrentPage,
+                    }}
+                />
+            </div>
         </div>
     );
 }

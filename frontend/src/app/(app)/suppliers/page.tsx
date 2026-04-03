@@ -1,214 +1,504 @@
 "use client";
 
-// Comments in English.
+import { useMemo, useState } from "react";
+import {
+    AlertTriangle,
+    CheckCircle2,
+    Download,
+    Filter,
+    Plus,
+    Upload,
+    Users,
+    ClipboardList,
+} from "lucide-react";
 
-import * as React from "react";
-import type { ColumnDef, RowSelectionState } from "@tanstack/react-table";
-
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import DataFilterBar from "@/components/common/data-filter-bar";
+import type { FilterField } from "@/components/common/data-filter-bar/types";
+import KpiCard from "@/components/common/kpi-card";
+import DataTable from "@/components/common/data-table";
 
-import { FilterBar } from "@/components/common/filter-bar";
-import { DataTable } from "@/components/common/data-table";
+type SupplierStatus = "Active" | "Risk" | "Pending" | "Inactive";
 
-type TableRow = {
+type SupplierItem = {
     id: string;
     name: string;
-    supplier: string;
-    origin: string;
-    price: number;
-    stock: number;
-    status: "Active" | "Inactive";
+    code: string;
+    category: "Electronics" | "Raw Materials" | "Logistics";
+    contactPerson: string;
+    email: string;
+    region: "North America" | "East Asia" | "Europe";
+    status: SupplierStatus;
+    lastOrder: string;
+    updated: string;
 };
 
-const mockData: TableRow[] = [
-    { id: "9", name: "Walnut", supplier: "ABC Foods", origin: "VIC", price: 100, stock: 120, status: "Active" },
-    { id: "8", name: "Spiced Beef", supplier: "ABC Foods", origin: "NSW", price: 100, stock: 100, status: "Active" },
-    { id: "7", name: "Orange Juice", supplier: "Fresh Co", origin: "SA", price: 6, stock: 280, status: "Active" },
-    { id: "6", name: "Milk 2L", supplier: "Dairy Best", origin: "VIC", price: 4, stock: 60, status: "Inactive" },
-    { id: "5", name: "Rice 5kg", supplier: "Good Grains", origin: "QLD", price: 18, stock: 42, status: "Active" },
-    { id: "4", name: "Soy Sauce", supplier: "ABC Foods", origin: "NSW", price: 8, stock: 150, status: "Active" },
+const supplierData: SupplierItem[] = [
+    {
+        id: "1",
+        name: "Global Semi Co.",
+        code: "GS-4002",
+        category: "Electronics",
+        contactPerson: "Alex Rivera",
+        email: "alex.r@globalsemi.com",
+        region: "North America",
+        status: "Active",
+        lastOrder: "Oct 24, 2023",
+        updated: "12m ago",
+    },
+    {
+        id: "2",
+        name: "Titanium Alloy Works",
+        code: "TAW-1102",
+        category: "Raw Materials",
+        contactPerson: "Chen Wei",
+        email: "c.wei@titanium.asia",
+        region: "East Asia",
+        status: "Risk",
+        lastOrder: "Oct 20, 2023",
+        updated: "2h ago",
+    },
+    {
+        id: "3",
+        name: "Swift Logistics EU",
+        code: "SLE-3081",
+        category: "Logistics",
+        contactPerson: "Emma Bauer",
+        email: "e.bauer@swift-log.de",
+        region: "Europe",
+        status: "Pending",
+        lastOrder: "Sep 12, 2023",
+        updated: "1d ago",
+    },
+    {
+        id: "4",
+        name: "Quantum Materials",
+        code: "QM-5501",
+        category: "Electronics",
+        contactPerson: "Jordan Smith",
+        email: "j.smith@qmaterials.com",
+        region: "North America",
+        status: "Inactive",
+        lastOrder: "Aug 05, 2023",
+        updated: "3w ago",
+    },
+    {
+        id: "5",
+        name: "Pacific Circuit Parts",
+        code: "PCP-7840",
+        category: "Electronics",
+        contactPerson: "Naoko Ito",
+        email: "n.ito@pcparts.jp",
+        region: "East Asia",
+        status: "Active",
+        lastOrder: "Oct 25, 2023",
+        updated: "8m ago",
+    },
+    {
+        id: "6",
+        name: "Nova Freight Systems",
+        code: "NFS-6622",
+        category: "Logistics",
+        contactPerson: "Daniel Moore",
+        email: "d.moore@novafreight.com",
+        region: "North America",
+        status: "Pending",
+        lastOrder: "Oct 18, 2023",
+        updated: "5h ago",
+    },
 ];
 
-const columns: ColumnDef<TableRow>[] = [
-    {
-        accessorKey: "id",
-        header: "No.",
-        cell: ({ row }) => <span className="text-muted-foreground">{row.original.id}</span>,
-    },
-    { accessorKey: "name", header: "Product Name" },
-    { accessorKey: "supplier", header: "Supplier" },
-    { accessorKey: "origin", header: "Origin" },
-    {
-        accessorKey: "price",
-        header: "Price",
-        cell: ({ row }) => <span className="tabular-nums">${row.original.price}</span>,
-    },
-    {
-        accessorKey: "stock",
-        header: "Stock",
-        cell: ({ row }) => <span className="tabular-nums">{row.original.stock}</span>,
-    },
-    {
-        accessorKey: "status",
-        header: "Status",
-        cell: ({ row }) =>
-            row.original.status === "Active" ? (
-                <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">Active</Badge>
-            ) : (
-                <Badge variant="secondary">Inactive</Badge>
-            ),
-    },
-    {
-        id: "actions",
-        header: "Actions",
-        cell: ({ row }) => (
-            <div className="flex gap-2 justify-end">
-                <Button size="sm" variant="outline" onClick={() => console.log("edit", row.original.id)}>
-                    Edit
-                </Button>
-                <Button size="sm" variant="destructive" onClick={() => console.log("delete", row.original.id)}>
-                    Delete
-                </Button>
-            </div>
-        ),
-    },
-];
+function cn(...classes: Array<string | false | undefined>) {
+    return classes.filter(Boolean).join(" ");
+}
 
-export default function SuppliersPage() {
-    // Filters
-    const [supplier, setSupplier] = React.useState("");
-    const [product, setProduct] = React.useState("");
+function getInitials(name: string) {
+    return name
+        .split(" ")
+        .map((part) => part[0])
+        .join("")
+        .slice(0, 2)
+        .toUpperCase();
+}
 
-    // Table data (local mock)
-    const [rows, setRows] = React.useState<TableRow[]>(mockData);
-
-    // Selection
-    const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({});
-
-    // Pagination
-    const [pageIndex, setPageIndex] = React.useState(0);
-    const [pageSize, setPageSize] = React.useState(10);
-
-    // Filtered rows (client-side)
-    const filteredRows = React.useMemo(() => {
-        const s = supplier.trim().toLowerCase();
-        const p = product.trim().toLowerCase();
-
-        return rows.filter((r) => {
-            const okSupplier = !s || r.supplier.toLowerCase().includes(s);
-            const okProduct = !p || r.name.toLowerCase().includes(p);
-            return okSupplier && okProduct;
-        });
-    }, [rows, supplier, product]);
-
-    // Paging (client-side)
-    const totalCount = filteredRows.length;
-    const pageCount = Math.max(1, Math.ceil(totalCount / pageSize));
-
-    // Keep pageIndex in range when filters/pageSize change
-    React.useEffect(() => {
-        setPageIndex((prev) => Math.min(prev, pageCount - 1));
-    }, [pageCount]);
-
-    const pageData = React.useMemo(() => {
-        const start = pageIndex * pageSize;
-        return filteredRows.slice(start, start + pageSize);
-    }, [filteredRows, pageIndex, pageSize]);
-
-    // Selected row ids (TanStack uses row index keys, not your id)
-    const selectedRowIndexes = Object.keys(rowSelection).filter((k) => (rowSelection as Record<string, boolean>)[k]);
-    const hasSelected = selectedRowIndexes.length > 0;
-
-    function handleSearch() {
-        // For mock filtering, nothing special to do (it's reactive),
-        // but we reset to first page to match typical UX.
-        setPageIndex(0);
-    }
-
-    function handleReset() {
-        setSupplier("");
-        setProduct("");
-        setPageIndex(0);
-    }
-
-    function handleAdd() {
-        // Mock add a new row
-        const newId = String(Date.now()).slice(-6);
-        const newRow: TableRow = {
-            id: newId,
-            name: `New Product ${newId}`,
-            supplier: "New Supplier",
-            origin: "SA",
-            price: 1,
-            stock: 1,
-            status: "Active",
-        };
-        setRows((prev) => [newRow, ...prev]);
-        setPageIndex(0);
-        setRowSelection({});
-    }
-
-    function handleBatchDelete() {
-        // Because rowSelection is based on current page row indexes,
-        // we delete by mapping selected row indexes to actual row ids in pageData.
-        const idsToDelete = selectedRowIndexes
-            .map((idx) => pageData[Number(idx)]?.id)
-            .filter(Boolean) as string[];
-
-        if (idsToDelete.length === 0) return;
-
-        setRows((prev) => prev.filter((r) => !idsToDelete.includes(r.id)));
-        setRowSelection({});
-    }
+function CategoryBadge({ category }: { category: SupplierItem["category"] }) {
+    const classMap = {
+        Electronics: "bg-[#DCEBFF] text-[#2D6BCF]",
+        "Raw Materials": "bg-[#E8DFFC] text-[#6C5AAE]",
+        Logistics: "bg-[#E9F7F1] text-[#1F8A5B]",
+    };
 
     return (
-        <div className="space-y-4">
-            <FilterBar
-                fields={
-                    <>
-                        <Input
-                            className="w-[240px]"
-                            placeholder="Please enter supplier name"
-                            value={supplier}
-                            onChange={(e) => setSupplier(e.target.value)}
-                        />
-                        <Input
-                            className="w-[240px]"
-                            placeholder="Please enter product name"
-                            value={product}
-                            onChange={(e) => setProduct(e.target.value)}
-                        />
-                    </>
-                }
-                primaryActions={[
-                    { key: "search", label: "Search", variant: "secondary", onClick: handleSearch },
-                    { key: "reset", label: "Reset", variant: "outline", onClick: handleReset },
-                ]}
-            />
+        <span
+            className={cn(
+                "inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold",
+                classMap[category]
+            )}
+        >
+            {category}
+        </span>
+    );
+}
 
-            <DataTable
-                columns={columns}
-                data={pageData}
-                enableRowSelection
-                rowSelection={rowSelection}
-                onRowSelectionChange={setRowSelection}
-                pageIndex={pageIndex}
-                pageSize={pageSize}
-                pageCount={pageCount}
-                totalCount={totalCount}
-                onPageChange={setPageIndex}
-                onPageSizeChange={(s) => {
-                    setPageSize(s);
-                    setPageIndex(0);
-                    setRowSelection({});
-                }}
-                actions={[
-                    { key: "add", label: "Add", variant: "secondary", onClick: handleAdd },
-                    { key: "batchDel", label: "Batch Delete", variant: "destructive", disabled: !hasSelected, onClick: handleBatchDelete },
-                ]}
-            />
+function SupplierStatusBadge({ status }: { status: SupplierStatus }) {
+    const statusClassMap = {
+        Active: "border-emerald-200 bg-emerald-50 text-emerald-700",
+        Risk: "border-rose-200 bg-rose-50 text-rose-600",
+        Pending: "border-blue-200 bg-blue-50 text-blue-700",
+        Inactive: "border-slate-200 bg-slate-100 text-slate-500",
+    };
+
+    const dotClassMap = {
+        Active: "bg-emerald-500",
+        Risk: "bg-rose-500",
+        Pending: "bg-blue-500",
+        Inactive: "bg-slate-400",
+    };
+
+    return (
+        <span
+            className={cn(
+                "inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-bold",
+                statusClassMap[status]
+            )}
+        >
+            <span className={cn("h-2 w-2 rounded-full", dotClassMap[status])} />
+            {status}
+        </span>
+    );
+}
+
+function SupplierCell({ item }: { item: SupplierItem }) {
+    return (
+        <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#DFE5FF] text-sm font-bold text-[#4763B4]">
+                {getInitials(item.name)}
+            </div>
+
+            <div>
+                <button className="text-left text-[16px] font-bold leading-6 text-[#183B6B] hover:underline">
+                    {item.name}
+                </button>
+                <div className="text-xs font-medium text-slate-400">ID: {item.code}</div>
+            </div>
+        </div>
+    );
+}
+
+function ContactCell({ item }: { item: SupplierItem }) {
+    return (
+        <div>
+            <div className="text-[14px] font-semibold text-[#183B6B]">
+                {item.contactPerson}
+            </div>
+            <div className="text-xs text-slate-400">{item.email}</div>
+        </div>
+    );
+}
+
+function ActionCell() {
+    return (
+        <button className="text-slate-400 transition hover:text-[#175CFF]">
+            <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+            >
+                <path d="M12 20h9" />
+                <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4Z" />
+            </svg>
+        </button>
+    );
+}
+
+export default function SuppliersPage() {
+    const [search, setSearch] = useState("");
+    const [currentPage, setCurrentPage] = useState(1);
+    const [status, setStatus] = useState("all");
+    const [region, setRegion] = useState("all");
+    const [category, setCategory] = useState("all");
+
+    const pageSize = 4;
+
+    const filteredData = useMemo(() => {
+        const keyword = search.trim().toLowerCase();
+
+        return supplierData.filter((item) => {
+            const matchKeyword =
+                !keyword ||
+                item.name.toLowerCase().includes(keyword) ||
+                item.contactPerson.toLowerCase().includes(keyword) ||
+                item.category.toLowerCase().includes(keyword);
+
+            const normalizedStatus = item.status.toLowerCase();
+            const matchStatus = status === "all" || normalizedStatus === status;
+
+            const normalizedRegion = item.region.toLowerCase().replace(/\s+/g, "-");
+            const matchRegion = region === "all" || normalizedRegion === region;
+
+            const normalizedCategory = item.category.toLowerCase().replace(/\s+/g, "-");
+            const matchCategory =
+                category === "all" || normalizedCategory === category;
+
+            return matchKeyword && matchStatus && matchRegion && matchCategory;
+        });
+    }, [search, status, region, category]);
+
+    const totalPages = Math.max(1, Math.ceil(filteredData.length / pageSize));
+
+    const pagedData = useMemo(() => {
+        const start = (currentPage - 1) * pageSize;
+        return filteredData.slice(start, start + pageSize);
+    }, [filteredData, currentPage]);
+
+    const filterFields: FilterField[] = [
+        {
+            key: "search",
+            type: "search",
+            value: search,
+            onChange: (value) => {
+                setSearch(value);
+                setCurrentPage(1);
+            },
+            placeholder: "Search Supplier Name / Contact / Category",
+        },
+        {
+            key: "status",
+            type: "select",
+            label: "",
+            value: status,
+            onChange: (value) => {
+                setStatus(value);
+                setCurrentPage(1);
+            },
+            options: [
+                { label: "Supplier Status", value: "all" },
+                { label: "Active", value: "active" },
+                { label: "Risk", value: "risk" },
+                { label: "Pending", value: "pending" },
+                { label: "Inactive", value: "inactive" },
+            ],
+        },
+        {
+            key: "region",
+            type: "select",
+            label: "",
+            value: region,
+            onChange: (value) => {
+                setRegion(value);
+                setCurrentPage(1);
+            },
+            options: [
+                { label: "Region", value: "all" },
+                { label: "North America", value: "north-america" },
+                { label: "East Asia", value: "east-asia" },
+                { label: "Europe", value: "europe" },
+            ],
+        },
+        {
+            key: "category",
+            type: "select",
+            label: "",
+            value: category,
+            onChange: (value) => {
+                setCategory(value);
+                setCurrentPage(1);
+            },
+            options: [
+                { label: "Product Category", value: "all" },
+                { label: "Electronics", value: "electronics" },
+                { label: "Raw Materials", value: "raw-materials" },
+                { label: "Logistics", value: "logistics" },
+            ],
+        },
+    ];
+
+    const columns = [
+        {
+            key: "supplier",
+            title: "Supplier",
+            render: (item: SupplierItem) => <SupplierCell item={item} />,
+        },
+        {
+            key: "category",
+            title: "Category",
+            render: (item: SupplierItem) => <CategoryBadge category={item.category} />,
+        },
+        {
+            key: "contactPerson",
+            title: "Contact Person",
+            render: (item: SupplierItem) => <ContactCell item={item} />,
+        },
+        {
+            key: "region",
+            title: "Region",
+            className: "text-[14px] font-medium text-[#32577E]",
+            render: (item: SupplierItem) => (
+                <span className="whitespace-pre-line">
+                    {item.region.replace(" ", "\n")}
+                </span>
+            ),
+        },
+        {
+            key: "status",
+            title: "Status",
+            render: (item: SupplierItem) => <SupplierStatusBadge status={item.status} />,
+        },
+        {
+            key: "lastOrder",
+            title: "Last Order",
+            className: "text-[14px] font-medium text-slate-500",
+            render: (item: SupplierItem) => (
+                <span className="whitespace-pre-line">
+                    {item.lastOrder.replace(", ", ",\n")}
+                </span>
+            ),
+        },
+        {
+            key: "updated",
+            title: "Updated",
+            className: "text-[14px] font-medium text-slate-500",
+            render: (item: SupplierItem) => item.updated,
+        },
+        {
+            key: "actions",
+            title: "Actions",
+            render: () => <ActionCell />,
+        },
+    ];
+
+    return (
+        <div className="min-h-screen bg-[#F6F8FC]">
+            <div className="mx-auto w-full max-w-[1440px] space-y-6">
+                <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+                    <div>
+                        <h1 className="text-3xl font-semibold tracking-tight text-[var(--erp-text)]">
+                            Suppliers
+                        </h1>
+                        <p className="max-w-[760px] text-base text-[var(--erp-text-secondary)]">
+                            Manage your strategic partnerships, contact details, and procurement
+                            categories with precision and oversight.
+                        </p>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-3">
+                        <Button
+                            variant="outline"
+                            className="h-12 rounded-sm border-[#D7E4FF] bg-[#EAF1FF] px-5 text-[15px] font-semibold text-[#183B6B] hover:bg-[#DFE9FF]"
+                        >
+                            <Upload className="mr-2 h-4 w-4" />
+                            Import
+                        </Button>
+
+                        <Button
+                            variant="outline"
+                            className="h-12 rounded-sm border-[#D7E4FF] bg-[#EAF1FF] px-5 text-[15px] font-semibold text-[#183B6B] hover:bg-[#DFE9FF]"
+                        >
+                            <Download className="mr-2 h-4 w-4" />
+                            Export
+                        </Button>
+
+                        <Button className="h-12 rounded-sm bg-[#175CFF] px-6 text-[15px] font-semibold text-white shadow-md shadow-blue-300/40 hover:bg-[#0F4FE8]">
+                            <Plus className="mr-2 h-4 w-4" />
+                            Add Supplier
+                        </Button>
+                    </div>
+                </div>
+
+                <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+                    <KpiCard
+                        title="Total Suppliers"
+                        value="124"
+                        description=""
+                        rightIcon={
+                            <div className="flex items-center gap-3">
+                                <div className="rounded-lg bg-[#EEF4FF] p-3 text-[#5B7BEA]">
+                                    <Users className="h-5 w-5" />
+                                </div>
+                                <span className="text-sm font-semibold text-emerald-600">+4.5%</span>
+                            </div>
+                        }
+                        className="border-l-4 border-l-[#175CFF]"
+                    />
+
+                    <KpiCard
+                        title="Active Suppliers"
+                        value="112"
+                        description=""
+                        rightIcon={
+                            <div className="flex items-center gap-3">
+                                <div className="rounded-lg bg-emerald-50 p-3 text-emerald-600">
+                                    <CheckCircle2 className="h-5 w-5" />
+                                </div>
+                                <span className="text-sm font-semibold text-slate-400">90.3%</span>
+                            </div>
+                        }
+                        className="border-l-4 border-l-emerald-500"
+                    />
+
+                    <KpiCard
+                        title="Pending Review"
+                        value="5"
+                        description="Review required"
+                        rightIcon={
+                            <div className="rounded-lg bg-orange-50 p-3 text-orange-500">
+                                <ClipboardList className="h-5 w-5" />
+                            </div>
+                        }
+                        className="border-l-4 border-l-orange-400"
+                    />
+
+                    <KpiCard
+                        title="High Risk Suppliers"
+                        value="7"
+                        description="Critical Action"
+                        rightIcon={
+                            <div className="rounded-lg bg-rose-50 p-3 text-rose-500">
+                                <AlertTriangle className="h-5 w-5" />
+                            </div>
+                        }
+                        className="border border-rose-100 bg-rose-50/40"
+                        valueClassName="text-[#B5473E]"
+                        descriptionClassName="font-semibold text-[#D46357]"
+                    />
+                </div>
+
+                <DataFilterBar
+                    fields={filterFields}
+                    actionSlot={
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-12 w-12 rounded-xl bg-[#EAF1FF] text-[#5B7BEA] hover:bg-[#DFE9FF]"
+                        >
+                            <Filter className="h-5 w-5" />
+                        </Button>
+                    }
+                />
+
+                <DataTable
+                    data={pagedData}
+                    columns={columns}
+                    rowKey={(row: SupplierItem) => row.id}
+                    selectable={false}
+                    emptyText="No suppliers found"
+                    footerLeft={`Showing ${filteredData.length === 0 ? 0 : (currentPage - 1) * pageSize + 1
+                        } to ${Math.min(currentPage * pageSize, filteredData.length)} of ${filteredData.length} results`}
+                    pagination={{
+                        currentPage,
+                        totalPages,
+                        totalItems: filteredData.length,
+                        pageSize,
+                        onPageChange: setCurrentPage,
+                    }}
+                />
+            </div>
         </div>
     );
 }

@@ -1,406 +1,416 @@
 "use client";
 
-import * as React from "react";
-import type { ColumnDef, RowSelectionState } from "@tanstack/react-table";
+import { useMemo, useState } from "react";
+import {
+  Download,
+  Plus,
+  RefreshCw,
+  MoreHorizontal,
+} from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import DataFilterBar from "@/components/common/data-filter-bar";
+import type { FilterField } from "@/components/common/data-filter-bar/types";
+import KpiCard from "@/components/common/kpi-card";
+import DataTable from "@/components/common/data-table";
 import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
-import { FilterBar } from "@/components/common/filter-bar";
-import { DataTable } from "@/components/common/data-table";
-import {
-  createUser,
-  deleteUser,
-  listUsers,
-  updateUser,
-  type User,
-} from "@/lib/users";
+type UserRole = "Admin" | "Manager" | "Staff";
+type UserStatus = "Active" | "Pending" | "Inactive" | "Suspended";
 
-type UserRow = User;
+type UserItem = {
+  id: string;
+  name: string;
+  email: string;
+  avatar: string;
+  employeeId: string;
+  department: string;
+  role: UserRole;
+  status: UserStatus;
+  lastLogin: string;
+  createdAt: string;
+};
 
-export default function UsersPage() {
-  const [keyword, setKeyword] = React.useState("");
+const users: UserItem[] = [
+  {
+    id: "1",
+    name: "Alexander Wright",
+    email: "alex.wright@executive.com",
+    avatar: "AW",
+    employeeId: "#ERP-20941",
+    department: "Finance",
+    role: "Admin",
+    status: "Active",
+    lastLogin: "2 mins ago",
+    createdAt: "Oct 24, 2023",
+  },
+  {
+    id: "2",
+    name: "Sarah Jenkins",
+    email: "s.jenkins@executive.com",
+    avatar: "SJ",
+    employeeId: "#ERP-21002",
+    department: "Sales",
+    role: "Manager",
+    status: "Pending",
+    lastLogin: "Never",
+    createdAt: "Nov 12, 2023",
+  },
+  {
+    id: "3",
+    name: "Michael Chen",
+    email: "m.chen@executive.com",
+    avatar: "MC",
+    employeeId: "#ERP-20855",
+    department: "Operations",
+    role: "Staff",
+    status: "Inactive",
+    lastLogin: "15 days ago",
+    createdAt: "Sep 05, 2023",
+  },
+  {
+    id: "4",
+    name: "Eleanor Young",
+    email: "e.young@executive.com",
+    avatar: "EY",
+    employeeId: "#ERP-21116",
+    department: "HR",
+    role: "Manager",
+    status: "Active",
+    lastLogin: "30+ days ago",
+    createdAt: "May 19, 2023",
+  },
+  {
+    id: "5",
+    name: "Daniel Foster",
+    email: "d.foster@executive.com",
+    avatar: "DF",
+    employeeId: "#ERP-20710",
+    department: "Inventory",
+    role: "Staff",
+    status: "Suspended",
+    lastLogin: "7 days ago",
+    createdAt: "Mar 08, 2023",
+  },
+  {
+    id: "6",
+    name: "Olivia Brown",
+    email: "o.brown@executive.com",
+    avatar: "OB",
+    employeeId: "#ERP-21088",
+    department: "Finance",
+    role: "Staff",
+    status: "Active",
+    lastLogin: "1 hour ago",
+    createdAt: "Jan 16, 2024",
+  },
+];
 
-  const [rows, setRows] = React.useState<UserRow[]>([]);
-  const [loading, setLoading] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
+function cn(...classes: Array<string | false | undefined>) {
+  return classes.filter(Boolean).join(" ");
+}
 
-  const [rowSelection, setRowSelection] =
-    React.useState<RowSelectionState>({});
-
-  const [pageIndex, setPageIndex] = React.useState(0);
-  const [pageSize, setPageSize] = React.useState(10);
-
-  const [editingUser, setEditingUser] = React.useState<UserRow | null>(null);
-  const [editName, setEditName] = React.useState("");
-  const [editEnabled, setEditEnabled] = React.useState(true);
-
-  const [creating, setCreating] = React.useState(false);
-  const [newEmail, setNewEmail] = React.useState("");
-  const [newName, setNewName] = React.useState("");
-  const [newTempPassword, setNewTempPassword] = React.useState("");
-
-  const hasSelected = React.useMemo(
-    () => Object.keys(rowSelection).length > 0,
-    [rowSelection]
+function Avatar({ name }: { name: string }) {
+  return (
+    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-200 text-sm font-bold text-slate-600">
+      {name}
+    </div>
   );
+}
 
-  const loadUsers = React.useCallback(
-    async (search?: string) => {
-      setLoading(true);
-      setError(null);
-      try {
-        const data = await listUsers(search);
-        setRows(data); // ✅ keep row data clean (no handlers injected)
-      } catch (e) {
-        setError(
-          e instanceof Error ? e.message : "Failed to load users from server."
-        );
-      } finally {
-        setLoading(false);
-      }
-    },
-    []
-  );
-
-  React.useEffect(() => {
-    void loadUsers();
-  }, [loadUsers]);
-
-  const openEdit = React.useCallback((user: User) => {
-    setEditingUser(user);
-    setEditName(user.name ?? "");
-    setEditEnabled(user.enabled);
-  }, []);
-
-  const resetCreateForm = React.useCallback(() => {
-    setNewEmail("");
-    setNewName("");
-    setNewTempPassword("");
-  }, []);
-
-  async function handleSearch() {
-    setPageIndex(0);
-    await loadUsers(keyword);
-  }
-
-  async function handleReset() {
-    setKeyword("");
-    setPageIndex(0);
-    await loadUsers();
-  }
-
-  async function handleCreate(e: React.FormEvent) {
-    e.preventDefault();
-    if (!newEmail.trim()) return;
-
-    setCreating(true);
-    setError(null);
-    try {
-      await createUser({
-        email: newEmail.trim(),
-        name: newName.trim() || undefined,
-        temporaryPassword: newTempPassword.trim() || undefined,
-      });
-      resetCreateForm();
-      await loadUsers(keyword);
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to create user in Cognito."
-      );
-    } finally {
-      setCreating(false);
-    }
-  }
-
-  async function handleSaveEdit() {
-    if (!editingUser) return;
-    setLoading(true);
-    setError(null);
-    try {
-      await updateUser(editingUser.id, {
-        name: editName.trim() || undefined,
-        enabled: editEnabled,
-      });
-      setEditingUser(null);
-      await loadUsers(keyword);
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to update user in Cognito."
-      );
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  const handleDelete = React.useCallback(
-    async (user: User) => {
-      if (!window.confirm(`Delete user ${user.email}?`)) return;
-      setLoading(true);
-      setError(null);
-      try {
-        await deleteUser(user.id);
-        await loadUsers(keyword);
-      } catch (err) {
-        setError(
-          err instanceof Error ? err.message : "Failed to delete user in Cognito."
-        );
-      } finally {
-        setLoading(false);
-      }
-    },
-    [keyword, loadUsers]
-  );
-
-  // ✅ columns live inside component so they can call openEdit/handleDelete
-  const columns = React.useMemo<ColumnDef<UserRow>[]>(
-    () => [
-      {
-        accessorKey: "email",
-        header: "Email",
-      },
-      {
-        accessorKey: "name",
-        header: "Name",
-      },
-      {
-        accessorKey: "status",
-        header: "Status",
-        cell: ({ row }) =>
-          row.original.enabled ? (
-            <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
-              Active
-            </Badge>
-          ) : (
-            <Badge variant="secondary">Disabled</Badge>
-          ),
-      },
-      {
-        accessorKey: "createdAt",
-        header: "Created At",
-        cell: ({ row }) => (
-          <span className="tabular-nums text-muted-foreground">
-            {new Date(row.original.createdAt).toLocaleString()}
-          </span>
-        ),
-      },
-      {
-        id: "actions",
-        header: "Actions",
-        cell: ({ row }) => (
-          <div className="flex gap-2 justify-end">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => openEdit(row.original)}
-            >
-              Edit
-            </Button>
-            <Button
-              size="sm"
-              variant="destructive"
-              onClick={() => void handleDelete(row.original)}
-            >
-              Delete
-            </Button>
-          </div>
-        ),
-      },
-    ],
-    [openEdit, handleDelete]
-  );
-
-  // Client-side paging
-  const totalCount = rows.length;
-  const pageCount = Math.max(1, Math.ceil(totalCount / pageSize));
-
-  React.useEffect(() => {
-    setPageIndex((prev) => Math.min(prev, pageCount - 1));
-  }, [pageCount]);
-
-  const pageData = React.useMemo(() => {
-    const start = pageIndex * pageSize;
-    return rows.slice(start, start + pageSize);
-  }, [rows, pageIndex, pageSize]);
+function RoleBadge({ role }: { role: UserRole }) {
+  const map: Record<UserRole, string> = {
+    Admin: "bg-blue-50 text-blue-600",
+    Manager: "bg-violet-50 text-violet-600",
+    Staff: "bg-slate-100 text-slate-600",
+  };
 
   return (
-    <div className="space-y-2">
-      <FilterBar
-        fields={
-          <Input
-            className="w-[260px]"
-            placeholder="Search by email"
-            value={keyword}
-            onChange={(e) => setKeyword(e.target.value)}
-          />
+    <span className={cn("rounded px-2 py-1 text-xs font-semibold uppercase", map[role])}>
+      {role}
+    </span>
+  );
+}
+
+function StatusBadge({ status }: { status: UserStatus }) {
+  const map: Record<UserStatus, string> = {
+    Active: "text-emerald-600",
+    Pending: "text-orange-500",
+    Inactive: "text-slate-500",
+    Suspended: "text-rose-600",
+  };
+
+  const dotMap: Record<UserStatus, string> = {
+    Active: "bg-emerald-500",
+    Pending: "bg-orange-400",
+    Inactive: "bg-slate-400",
+    Suspended: "bg-rose-500",
+  };
+
+  return (
+    <div className={cn("flex items-center gap-2 text-sm font-medium", map[status])}>
+      <span className={cn("h-2 w-2 rounded-full", dotMap[status])} />
+      <span>{status}</span>
+    </div>
+  );
+}
+
+function UserActions({ user }: { user: UserItem }) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg">
+          <MoreHorizontal className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+
+      <DropdownMenuContent align="end" className="w-44">
+        <DropdownMenuItem>View Details</DropdownMenuItem>
+        <DropdownMenuItem>Edit User</DropdownMenuItem>
+        <DropdownMenuItem>Reset Password</DropdownMenuItem>
+
+        <DropdownMenuSeparator />
+
+        {user.status === "Inactive" || user.status === "Suspended" ? (
+          <DropdownMenuItem>Enable User</DropdownMenuItem>
+        ) : (
+          <DropdownMenuItem>Disable User</DropdownMenuItem>
+        )}
+
+        {user.status === "Pending" ? (
+          <DropdownMenuItem>Resend Invite</DropdownMenuItem>
+        ) : null}
+
+        <DropdownMenuSeparator />
+        <DropdownMenuItem className="text-rose-600 focus:text-rose-600">
+          Delete User
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+export default function UsersPage() {
+  const [search, setSearch] = useState("");
+  const [role, setRole] = useState("all");
+  const [status, setStatus] = useState("all");
+  const [department, setDepartment] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const pageSize = 6;
+
+  const filtered = useMemo(() => {
+    const keyword = search.toLowerCase();
+
+    return users.filter((u) => {
+      const matchesKeyword =
+        u.name.toLowerCase().includes(keyword) ||
+        u.email.toLowerCase().includes(keyword) ||
+        u.employeeId.toLowerCase().includes(keyword);
+
+      const matchesRole = role === "all" || u.role.toLowerCase() === role;
+      const matchesStatus = status === "all" || u.status.toLowerCase() === status;
+      const matchesDepartment =
+        department === "all" || u.department.toLowerCase() === department;
+
+      return matchesKeyword && matchesRole && matchesStatus && matchesDepartment;
+    });
+  }, [search, role, status, department]);
+
+  const totalPages = Math.ceil(filtered.length / pageSize);
+
+  const paged = filtered.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  );
+
+  const filterFields: FilterField[] = [
+    {
+      key: "search",
+      type: "search",
+      value: search,
+      placeholder: "Search name, email, employee ID...",
+      onChange: (value) => {
+        setSearch(value);
+        setCurrentPage(1);
+      },
+    },
+    {
+      key: "role",
+      type: "select",
+      label: "Role",
+      value: role,
+      onChange: (value) => {
+        setRole(value);
+        setCurrentPage(1);
+      },
+      options: [
+        { label: "All Roles", value: "all" },
+        { label: "Admin", value: "admin" },
+        { label: "Manager", value: "manager" },
+        { label: "Staff", value: "staff" },
+      ],
+    },
+    {
+      key: "status",
+      type: "select",
+      label: "Status",
+      value: status,
+      onChange: (value) => {
+        setStatus(value);
+        setCurrentPage(1);
+      },
+      options: [
+        { label: "All Status", value: "all" },
+        { label: "Active", value: "active" },
+        { label: "Pending", value: "pending" },
+        { label: "Inactive", value: "inactive" },
+        { label: "Suspended", value: "suspended" },
+      ],
+    },
+    {
+      key: "department",
+      type: "select",
+      label: "Department",
+      value: department,
+      onChange: (value) => {
+        setDepartment(value);
+        setCurrentPage(1);
+      },
+      options: [
+        { label: "All Departments", value: "all" },
+        { label: "Finance", value: "finance" },
+        { label: "Sales", value: "sales" },
+        { label: "Operations", value: "operations" },
+        { label: "HR", value: "hr" },
+        { label: "Inventory", value: "inventory" },
+      ],
+    },
+  ];
+
+  const columns = [
+    {
+      key: "user",
+      title: "User",
+      render: (u: UserItem) => (
+        <div className="flex items-center gap-3">
+          <Avatar name={u.avatar} />
+          <div className="min-w-0">
+            <p className="truncate font-medium">{u.name}</p>
+            <p className="truncate text-sm text-slate-500">{u.email}</p>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: "employeeId",
+      title: "ID",
+      render: (u: UserItem) => (
+        <span className="font-semibold text-[#175CFF]">{u.employeeId}</span>
+      ),
+    },
+    {
+      key: "department",
+      title: "Department",
+      render: (u: UserItem) => u.department,
+    },
+    {
+      key: "role",
+      title: "Role",
+      render: (u: UserItem) => <RoleBadge role={u.role} />,
+    },
+    {
+      key: "status",
+      title: "Status",
+      render: (u: UserItem) => <StatusBadge status={u.status} />,
+    },
+    {
+      key: "lastLogin",
+      title: "Last Login",
+      render: (u: UserItem) => u.lastLogin,
+    },
+    {
+      key: "createdAt",
+      title: "Created At",
+      render: (u: UserItem) => u.createdAt,
+    },
+    {
+      key: "actions",
+      title: "Actions",
+      render: (u: UserItem) => <UserActions user={u} />,
+    },
+  ];
+
+  const resetFilters = () => {
+    setSearch("");
+    setRole("all");
+    setStatus("all");
+    setDepartment("all");
+    setCurrentPage(1);
+  };
+
+  return (
+    <div className="min-h-screen bg-[#F6F8FC] space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-semibold">Users</h1>
+          <p className="text-slate-500">
+            Manage user accounts, roles, status and access permissions.
+          </p>
+        </div>
+
+        <div className="flex gap-3">
+          <Button variant="outline" size="icon">
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+
+          <Button variant="outline">
+            <Download className="mr-2 h-4 w-4" />
+            Export CSV
+          </Button>
+
+          <Button>
+            <Plus className="mr-2 h-4 w-4" />
+            Add User
+          </Button>
+        </div>
+      </div>
+
+      <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-5">
+        <KpiCard title="Total Users" value="1,248" rightIcon={undefined} />
+        <KpiCard title="Active Users" value="1,120" rightIcon={undefined} />
+        <KpiCard title="Admins" value="12" rightIcon={undefined} />
+        <KpiCard title="Pending Invitations" value="45" rightIcon={undefined} />
+      </div>
+
+      <DataFilterBar
+        fields={filterFields}
+        actionSlot={
+          <Button variant="ghost" onClick={resetFilters}>
+            Reset
+          </Button>
         }
-        primaryActions={[
-          {
-            key: "search",
-            label: "Search",
-            variant: "secondary",
-            onClick: () => {
-              void handleSearch();
-            },
-          },
-          {
-            key: "reset",
-            label: "Reset",
-            variant: "outline",
-            onClick: () => {
-              void handleReset();
-            },
-          },
-        ]}
       />
-
-      <form
-        onSubmit={handleCreate}
-        className="grid gap-3 rounded-lg border bg-card p-4 md:grid-cols-5 md:items-end"
-      >
-        <div className="md:col-span-2  space-y-1.5">
-          <Label htmlFor="new-email">Email</Label>
-          <Input
-            id="new-email"
-            type="email"
-            required
-            placeholder="user@example.com"
-            value={newEmail}
-            onChange={(e) => setNewEmail(e.target.value)}
-          />
-        </div>
-
-        <div className="space-y-1.5">
-          <Label htmlFor="new-name">Name</Label>
-          <Input
-            id="new-name"
-            placeholder="Display name"
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-          />
-        </div>
-
-        {/* Keep as-is; you can add Temp Password field later if needed */}
-        <div className="md:col-span-2 flex w-full justify-end gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={resetCreateForm}
-            className="w-full md:w-auto"
-          >
-            Clear
-          </Button>
-
-          <Button
-            type="submit"
-            className="w-full md:w-auto"
-            disabled={creating}
-          >
-            {creating ? "Creating..." : "Add user"}
-          </Button>
-        </div>
-      </form>
-
-      {error && (
-        <div className="text-sm text-red-600" role="alert">
-          {error}
-        </div>
-      )}
 
       <DataTable
+        data={paged}
         columns={columns}
-        data={pageData}
-        enableRowSelection
-        rowSelection={rowSelection}
-        onRowSelectionChange={setRowSelection}
-        pageIndex={pageIndex}
-        pageSize={pageSize}
-        pageCount={pageCount}
-        totalCount={totalCount}
-        onPageChange={setPageIndex}
-        onPageSizeChange={(s) => {
-          setPageSize(s);
-          setPageIndex(0);
-          setRowSelection({});
+        rowKey={(u: UserItem) => u.id}
+        pagination={{
+          currentPage,
+          totalPages,
+          totalItems: filtered.length,
+          pageSize,
+          onPageChange: setCurrentPage,
         }}
-        loading={loading}
-        emptyText="No users found"
-        actions={[
-          {
-            key: "batchDelete",
-            label: "Batch Delete",
-            variant: "destructive",
-            onClick: () => {
-              // TODO: implement using rowSelection + your table row ids
-            },
-            disabled: !hasSelected,
-          },
-        ]}
+        selectable={false}
       />
-
-      <Dialog
-        open={!!editingUser}
-        onOpenChange={(open) => !open && setEditingUser(null)}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit user</DialogTitle>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            <div className="space-y-1.5">
-              <Label>Email</Label>
-              <Input value={editingUser?.email ?? ""} disabled />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="edit-name">Name</Label>
-              <Input
-                id="edit-name"
-                value={editName}
-                onChange={(e) => setEditName(e.target.value)}
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label htmlFor="edit-enabled">Active</Label>
-                <p className="text-xs text-muted-foreground">
-                  Toggle to enable or disable sign-in for this user.
-                </p>
-              </div>
-              <Switch
-                id="edit-enabled"
-                checked={editEnabled}
-                onCheckedChange={(v) => setEditEnabled(v)}
-              />
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setEditingUser(null)}
-            >
-              Cancel
-            </Button>
-            <Button type="button" onClick={() => void handleSaveEdit()}>
-              Save
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

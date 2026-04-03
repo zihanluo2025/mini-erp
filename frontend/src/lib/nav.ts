@@ -1,4 +1,4 @@
-import { Boxes, LayoutDashboard, Warehouse, ShoppingCart, Settings } from "lucide-react";
+import { Boxes, LayoutDashboard, Warehouse, ShoppingCart, Settings,ShieldPlus } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 // Comments in English.
@@ -18,7 +18,7 @@ export const NAV: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
 
   {
-    label: "Basic Info",
+    label: "Master Data",
     icon: Boxes,
     children: [
       { href: "/products", label: "Products" },
@@ -40,6 +40,17 @@ export const NAV: NavItem[] = [
     label: "Sales",
     icon: ShoppingCart,
     children: [{ href: "/sales/orders", label: "Orders" }],
+  },
+  {
+    label: "Approvals",
+    icon: ShieldPlus,
+    children: [
+      { href: "/approvals/pending", label: "Pending" },
+      { href: "/approvals/completed", label: "Completed" },
+      { href: "/approvals/requests", label: "Requests" },
+      { href: "/approvals/audit", label: "Audit",requiredRole: "admin" }
+
+    ],
   },
 
   // only show settings to admins for now, since it includes user management

@@ -1,213 +1,448 @@
 "use client";
 
-// Comments in English.
+import { useMemo, useState } from "react";
+import {
+    Download,
+    Plus,
+    RefreshCw,
+    MoreHorizontal,
+    Users,
+    UserCheck,
+    ShieldCheck,
+    Mail,
+} from "lucide-react";
 
-import * as React from "react";
-import type { ColumnDef, RowSelectionState } from "@tanstack/react-table";
-
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import DataFilterBar from "@/components/common/data-filter-bar";
+import type { FilterField } from "@/components/common/data-filter-bar/types";
+import KpiCard from "@/components/common/kpi-card";
+import DataTable from "@/components/common/data-table";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
-import { FilterBar } from "@/components/common/filter-bar";
-import { DataTable } from "@/components/common/data-table";
+type UserRole = "Admin" | "Manager" | "Staff";
+type UserStatus = "Active" | "Pending" | "Inactive" | "Suspended";
 
-type OrderRow = {
+type UserItem = {
     id: string;
     name: string;
-    supplier: string;
-    origin: string;
-    price: number;
-    stock: number;
-    status: "Active" | "Inactive";
+    email: string;
+    avatar: string;
+    employeeId: string;
+    department: string;
+    role: UserRole;
+    status: UserStatus;
+    lastLogin: string;
+    createdAt: string;
 };
 
-const mockData: OrderRow[] = [
-    { id: "9", name: "Walnut", supplier: "ABC Foods", origin: "VIC", price: 100, stock: 120, status: "Active" },
-    { id: "8", name: "Spiced Beef", supplier: "ABC Foods", origin: "NSW", price: 100, stock: 100, status: "Active" },
-    { id: "7", name: "Orange Juice", supplier: "Fresh Co", origin: "SA", price: 6, stock: 280, status: "Active" },
-    { id: "6", name: "Milk 2L", supplier: "Dairy Best", origin: "VIC", price: 4, stock: 60, status: "Inactive" },
-    { id: "5", name: "Rice 5kg", supplier: "Good Grains", origin: "QLD", price: 18, stock: 42, status: "Active" },
-    { id: "4", name: "Soy Sauce", supplier: "ABC Foods", origin: "NSW", price: 8, stock: 150, status: "Active" },
+const users: UserItem[] = [
+    {
+        id: "1",
+        name: "Alexander Wright",
+        email: "alex.wright@executive.com",
+        avatar: "AW",
+        employeeId: "#ERP-20941",
+        department: "Finance",
+        role: "Admin",
+        status: "Active",
+        lastLogin: "2 mins ago",
+        createdAt: "Oct 24, 2023",
+    },
+    {
+        id: "2",
+        name: "Sarah Jenkins",
+        email: "s.jenkins@executive.com",
+        avatar: "SJ",
+        employeeId: "#ERP-21002",
+        department: "Sales",
+        role: "Manager",
+        status: "Pending",
+        lastLogin: "Never",
+        createdAt: "Nov 12, 2023",
+    },
+    {
+        id: "3",
+        name: "Michael Chen",
+        email: "m.chen@executive.com",
+        avatar: "MC",
+        employeeId: "#ERP-20855",
+        department: "Operations",
+        role: "Staff",
+        status: "Inactive",
+        lastLogin: "15 days ago",
+        createdAt: "Sep 05, 2023",
+    },
+    {
+        id: "4",
+        name: "Eleanor Young",
+        email: "e.young@executive.com",
+        avatar: "EY",
+        employeeId: "#ERP-21116",
+        department: "HR",
+        role: "Manager",
+        status: "Active",
+        lastLogin: "30+ days ago",
+        createdAt: "May 19, 2023",
+    },
+    {
+        id: "5",
+        name: "Daniel Foster",
+        email: "d.foster@executive.com",
+        avatar: "DF",
+        employeeId: "#ERP-20710",
+        department: "Inventory",
+        role: "Staff",
+        status: "Suspended",
+        lastLogin: "7 days ago",
+        createdAt: "Mar 08, 2023",
+    },
+    {
+        id: "6",
+        name: "Olivia Brown",
+        email: "o.brown@executive.com",
+        avatar: "OB",
+        employeeId: "#ERP-21088",
+        department: "Finance",
+        role: "Staff",
+        status: "Active",
+        lastLogin: "1 hour ago",
+        createdAt: "Jan 16, 2024",
+    },
 ];
 
-const columns: ColumnDef<OrderRow>[] = [
-    {
-        accessorKey: "id",
-        header: "No.",
-        cell: ({ row }) => <span className="text-muted-foreground">{row.original.id}</span>,
-    },
-    { accessorKey: "name", header: "Product Name" },
-    { accessorKey: "supplier", header: "Supplier" },
-    { accessorKey: "origin", header: "Origin" },
-    {
-        accessorKey: "price",
-        header: "Price",
-        cell: ({ row }) => <span className="tabular-nums">${row.original.price}</span>,
-    },
-    {
-        accessorKey: "stock",
-        header: "Stock",
-        cell: ({ row }) => <span className="tabular-nums">{row.original.stock}</span>,
-    },
-    {
-        accessorKey: "status",
-        header: "Status",
-        cell: ({ row }) =>
-            row.original.status === "Active" ? (
-                <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">Active</Badge>
-            ) : (
-                <Badge variant="secondary">Inactive</Badge>
-            ),
-    },
-    {
-        id: "actions",
-        header: "Actions",
-        cell: ({ row }) => (
-            <div className="flex gap-2 justify-end">
-                <Button size="sm" variant="outline" onClick={() => console.log("edit", row.original.id)}>
-                    Edit
-                </Button>
-                <Button size="sm" variant="destructive" onClick={() => console.log("delete", row.original.id)}>
-                    Delete
-                </Button>
-            </div>
-        ),
-    },
-];
+function cn(...classes: Array<string | false | undefined>) {
+    return classes.filter(Boolean).join(" ");
+}
 
-export default function OrdersPage() {
-    // Filters
-    const [supplier, setSupplier] = React.useState("");
-    const [product, setProduct] = React.useState("");
+function Avatar({ name }: { name: string }) {
+    return (
+        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-200 text-sm font-bold text-slate-600">
+            {name}
+        </div>
+    );
+}
 
-    // Table data (local mock)
-    const [rows, setRows] = React.useState<OrderRow[]>(mockData);
-
-    // Selection
-    const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({});
-
-    // Pagination
-    const [pageIndex, setPageIndex] = React.useState(0);
-    const [pageSize, setPageSize] = React.useState(10);
-
-    // Filtered rows (client-side)
-    const filteredRows = React.useMemo(() => {
-        const s = supplier.trim().toLowerCase();
-        const p = product.trim().toLowerCase();
-
-        return rows.filter((r) => {
-            const okSupplier = !s || r.supplier.toLowerCase().includes(s);
-            const okProduct = !p || r.name.toLowerCase().includes(p);
-            return okSupplier && okProduct;
-        });
-    }, [rows, supplier, product]);
-
-    // Paging (client-side)
-    const totalCount = filteredRows.length;
-    const pageCount = Math.max(1, Math.ceil(totalCount / pageSize));
-
-    // Keep pageIndex in range when filters/pageSize change
-    React.useEffect(() => {
-        setPageIndex((prev) => Math.min(prev, pageCount - 1));
-    }, [pageCount]);
-
-    const pageData = React.useMemo(() => {
-        const start = pageIndex * pageSize;
-        return filteredRows.slice(start, start + pageSize);
-    }, [filteredRows, pageIndex, pageSize]);
-
-    // Selected row ids (TanStack uses row index keys, not your id)
-    const selectedRowIndexes = Object.keys(rowSelection).filter((k) => (rowSelection as Record<string, boolean>)[k]);
-    const hasSelected = selectedRowIndexes.length > 0;
-
-    function handleSearch() {
-        // For mock filtering, nothing special to do (it's reactive),
-        // but we reset to first page to match typical UX.
-        setPageIndex(0);
-    }
-
-    function handleReset() {
-        setSupplier("");
-        setProduct("");
-        setPageIndex(0);
-    }
-
-    function handleAdd() {
-        // Mock add a new row
-        const newId = String(Date.now()).slice(-6);
-        const newRow: OrderRow = {
-            id: newId,
-            name: `New Product ${newId}`,
-            supplier: "New Supplier",
-            origin: "SA",
-            price: 1,
-            stock: 1,
-            status: "Active",
-        };
-        setRows((prev) => [newRow, ...prev]);
-        setPageIndex(0);
-        setRowSelection({});
-    }
-
-    function handleBatchDelete() {
-        // Because rowSelection is based on current page row indexes,
-        // we delete by mapping selected row indexes to actual row ids in pageData.
-        const idsToDelete = selectedRowIndexes
-            .map((idx) => pageData[Number(idx)]?.id)
-            .filter(Boolean) as string[];
-
-        if (idsToDelete.length === 0) return;
-
-        setRows((prev) => prev.filter((r) => !idsToDelete.includes(r.id)));
-        setRowSelection({});
-    }
+function RoleBadge({ role }: { role: UserRole }) {
+    const map: Record<UserRole, string> = {
+        Admin: "bg-blue-50 text-blue-600",
+        Manager: "bg-violet-50 text-violet-600",
+        Staff: "bg-slate-100 text-slate-600",
+    };
 
     return (
-        <div className="space-y-4">
-            <FilterBar
-                fields={
-                    <>
-                        <Input
-                            className="w-[240px]"
-                            placeholder="Please enter supplier name"
-                            value={supplier}
-                            onChange={(e) => setSupplier(e.target.value)}
-                        />
-                        <Input
-                            className="w-[240px]"
-                            placeholder="Please enter product name"
-                            value={product}
-                            onChange={(e) => setProduct(e.target.value)}
-                        />
-                    </>
+        <span className={cn("rounded px-2 py-1 text-xs font-semibold uppercase", map[role])}>
+            {role}
+        </span>
+    );
+}
+
+function StatusBadge({ status }: { status: UserStatus }) {
+    const map: Record<UserStatus, string> = {
+        Active: "text-emerald-600",
+        Pending: "text-orange-500",
+        Inactive: "text-slate-500",
+        Suspended: "text-rose-600",
+    };
+
+    const dotMap: Record<UserStatus, string> = {
+        Active: "bg-emerald-500",
+        Pending: "bg-orange-400",
+        Inactive: "bg-slate-400",
+        Suspended: "bg-rose-500",
+    };
+
+    return (
+        <div className={cn("flex items-center gap-2 text-sm font-medium", map[status])}>
+            <span className={cn("h-2 w-2 rounded-full", dotMap[status])} />
+            <span>{status}</span>
+        </div>
+    );
+}
+
+function UserActions({ user }: { user: UserItem }) {
+    return (
+        <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg">
+                    <MoreHorizontal className="h-4 w-4" />
+                </Button>
+            </DropdownMenuTrigger>
+
+            <DropdownMenuContent align="end" className="w-44">
+                <DropdownMenuItem>View Details</DropdownMenuItem>
+                <DropdownMenuItem>Edit User</DropdownMenuItem>
+                <DropdownMenuItem>Reset Password</DropdownMenuItem>
+
+                <DropdownMenuSeparator />
+
+                {user.status === "Inactive" || user.status === "Suspended" ? (
+                    <DropdownMenuItem>Enable User</DropdownMenuItem>
+                ) : (
+                    <DropdownMenuItem>Disable User</DropdownMenuItem>
+                )}
+
+                {user.status === "Pending" ? (
+                    <DropdownMenuItem>Resend Invite</DropdownMenuItem>
+                ) : null}
+
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="text-rose-600 focus:text-rose-600">
+                    Delete User
+                </DropdownMenuItem>
+            </DropdownMenuContent>
+        </DropdownMenu>
+    );
+}
+
+export default function UsersPage() {
+    const [search, setSearch] = useState("");
+    const [role, setRole] = useState("all");
+    const [status, setStatus] = useState("all");
+    const [department, setDepartment] = useState("all");
+    const [currentPage, setCurrentPage] = useState(1);
+
+    const pageSize = 6;
+
+    const filtered = useMemo(() => {
+        const keyword = search.toLowerCase();
+
+        return users.filter((u) => {
+            const matchesKeyword =
+                u.name.toLowerCase().includes(keyword) ||
+                u.email.toLowerCase().includes(keyword) ||
+                u.employeeId.toLowerCase().includes(keyword);
+
+            const matchesRole = role === "all" || u.role.toLowerCase() === role;
+            const matchesStatus = status === "all" || u.status.toLowerCase() === status;
+            const matchesDepartment =
+                department === "all" || u.department.toLowerCase() === department;
+
+            return matchesKeyword && matchesRole && matchesStatus && matchesDepartment;
+        });
+    }, [search, role, status, department]);
+
+    const totalPages = Math.ceil(filtered.length / pageSize);
+
+    const paged = filtered.slice(
+        (currentPage - 1) * pageSize,
+        currentPage * pageSize
+    );
+
+    const filterFields: FilterField[] = [
+        {
+            key: "search",
+            type: "search",
+            value: search,
+            placeholder: "Search name, email, employee ID...",
+            onChange: (value) => {
+                setSearch(value);
+                setCurrentPage(1);
+            },
+        },
+        {
+            key: "role",
+            type: "select",
+            label: "Role",
+            value: role,
+            onChange: (value) => {
+                setRole(value);
+                setCurrentPage(1);
+            },
+            options: [
+                { label: "All Roles", value: "all" },
+                { label: "Admin", value: "admin" },
+                { label: "Manager", value: "manager" },
+                { label: "Staff", value: "staff" },
+            ],
+        },
+        {
+            key: "status",
+            type: "select",
+            label: "Status",
+            value: status,
+            onChange: (value) => {
+                setStatus(value);
+                setCurrentPage(1);
+            },
+            options: [
+                { label: "All Status", value: "all" },
+                { label: "Active", value: "active" },
+                { label: "Pending", value: "pending" },
+                { label: "Inactive", value: "inactive" },
+                { label: "Suspended", value: "suspended" },
+            ],
+        },
+        {
+            key: "department",
+            type: "select",
+            label: "Department",
+            value: department,
+            onChange: (value) => {
+                setDepartment(value);
+                setCurrentPage(1);
+            },
+            options: [
+                { label: "All Departments", value: "all" },
+                { label: "Finance", value: "finance" },
+                { label: "Sales", value: "sales" },
+                { label: "Operations", value: "operations" },
+                { label: "HR", value: "hr" },
+                { label: "Inventory", value: "inventory" },
+            ],
+        },
+    ];
+
+    const columns = [
+        {
+            key: "user",
+            title: "User",
+            render: (u: UserItem) => (
+                <div className="flex items-center gap-3">
+                    <Avatar name={u.avatar} />
+                    <div className="min-w-0">
+                        <p className="truncate font-semibold text-slate-900">{u.name}</p>
+                        <p className="truncate text-sm text-[#175CFF]">{u.email}</p>
+                    </div>
+                </div>
+            ),
+        },
+        {
+            key: "employeeId",
+            title: "ID",
+            render: (u: UserItem) => (
+                <span className="font-semibold text-[#175CFF]">{u.employeeId}</span>
+            ),
+        },
+        {
+            key: "department",
+            title: "Department",
+            render: (u: UserItem) => u.department,
+        },
+        {
+            key: "role",
+            title: "Role",
+            render: (u: UserItem) => <RoleBadge role={u.role} />,
+        },
+        {
+            key: "status",
+            title: "Status",
+            render: (u: UserItem) => <StatusBadge status={u.status} />,
+        },
+        {
+            key: "lastLogin",
+            title: "Last Login",
+            render: (u: UserItem) => u.lastLogin,
+        },
+        {
+            key: "createdAt",
+            title: "Created At",
+            render: (u: UserItem) => u.createdAt,
+        },
+        {
+            key: "actions",
+            title: "Actions",
+            render: (u: UserItem) => <UserActions user={u} />,
+        },
+    ];
+
+    const totalUsers = users.length;
+    const activeUsers = users.filter((u) => u.status === "Active").length;
+    const adminUsers = users.filter((u) => u.role === "Admin").length;
+    const pendingInvitations = users.filter((u) => u.status === "Pending").length;
+
+    const resetFilters = () => {
+        setSearch("");
+        setRole("all");
+        setStatus("all");
+        setDepartment("all");
+        setCurrentPage(1);
+    };
+
+    return (
+        <div className="min-h-screen space-y-6 bg-[#F6F8FC]">
+            <div className="flex items-center justify-between">
+                <div>
+                    <h1 className="text-3xl font-semibold">Users</h1>
+                    <p className="text-slate-500">
+                        Manage user accounts, roles, status and access permissions.
+                    </p>
+                </div>
+
+                <div className="flex gap-3">
+                    <Button variant="outline" size="icon">
+                        <RefreshCw className="h-4 w-4" />
+                    </Button>
+
+                    <Button variant="outline">
+                        <Download className="mr-2 h-4 w-4" />
+                        Export CSV
+                    </Button>
+
+                    <Button>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Add User
+                    </Button>
+                </div>
+            </div>
+
+            <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+                <KpiCard
+                    title="Total Users"
+                    value={totalUsers.toLocaleString()}
+                    icon={<Users className="h-5 w-5 text-blue-600" />}
+                    trend={{ value: "+12% from last month", positive: true }}
+                />
+                <KpiCard
+                    title="Active Users"
+                    value={activeUsers.toLocaleString()}
+                    icon={<UserCheck className="h-5 w-5 text-emerald-600" />}
+                    description={`${((activeUsers / totalUsers) * 100).toFixed(1)}% of total directory`}
+                />
+                <KpiCard
+                    title="Admins"
+                    value={adminUsers.toLocaleString()}
+                    icon={<ShieldCheck className="h-5 w-5 text-indigo-600" />}
+                    description="Privileged access accounts"
+                />
+                <KpiCard
+                    title="Pending Invitations"
+                    value={pendingInvitations.toLocaleString()}
+                    icon={<Mail className="h-5 w-5 text-orange-500" />}
+                    description="Requires action"
+                />
+            </div>
+
+            <DataFilterBar
+                fields={filterFields}
+                actionSlot={
+                    <Button
+                        variant="ghost"
+                        className="text-[#175CFF] hover:bg-blue-50 hover:text-[#175CFF]"
+                        onClick={resetFilters}
+                    >
+                        Reset
+                    </Button>
                 }
-                primaryActions={[
-                    { key: "search", label: "Search", variant: "secondary", onClick: handleSearch },
-                    { key: "reset", label: "Reset", variant: "outline", onClick: handleReset },
-                ]}
             />
 
             <DataTable
+                data={paged}
                 columns={columns}
-                data={pageData}
-                enableRowSelection
-                rowSelection={rowSelection}
-                onRowSelectionChange={setRowSelection}
-                pageIndex={pageIndex}
-                pageSize={pageSize}
-                pageCount={pageCount}
-                totalCount={totalCount}
-                onPageChange={setPageIndex}
-                onPageSizeChange={(s) => {
-                    setPageSize(s);
-                    setPageIndex(0);
-                    setRowSelection({});
+                rowKey={(u: UserItem) => u.id}
+                pagination={{
+                    currentPage,
+                    totalPages,
+                    totalItems: filtered.length,
+                    pageSize,
+                    onPageChange: setCurrentPage,
                 }}
-                actions={[
-                    { key: "add", label: "Add", variant: "secondary", onClick: handleAdd },
-                    { key: "batchDel", label: "Batch Delete", variant: "destructive", disabled: !hasSelected, onClick: handleBatchDelete },
-                ]}
+                selectable
             />
         </div>
     );

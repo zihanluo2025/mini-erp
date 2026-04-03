@@ -1,213 +1,283 @@
 "use client";
 
-// Comments in English.
+import { useMemo, useState } from "react";
+import {
+    Plus,
+    Filter,
+    Download,
+    Calendar,
+    CheckCircle2,
+    AlertTriangle,
+    PackageCheck,
+} from "lucide-react";
 
-import * as React from "react";
-import type { ColumnDef, RowSelectionState } from "@tanstack/react-table";
-
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import DataTable from "@/components/common/data-table";
+import DataFilterBar from "@/components/common/data-filter-bar";
+import type { FilterField } from "@/components/common/data-filter-bar/types";
+import KpiCard from "@/components/common/kpi-card";
 
-import { FilterBar } from "@/components/common/filter-bar";
-import { DataTable } from "@/components/common/data-table";
+type InboundStatus =
+    | "Completed"
+    | "Partially Received"
+    | "Exception"
+    | "Pending";
 
-type TableRow = {
+type InboundItem = {
     id: string;
-    name: string;
     supplier: string;
-    origin: string;
-    price: number;
-    stock: number;
-    status: "Active" | "Inactive";
+    supplierId: string;
+    warehouse: string;
+    items: number;
+    expectedQty: number;
+    receivedQty: number;
+    date: string;
+    status: InboundStatus;
 };
 
-const mockData: TableRow[] = [
-    { id: "9", name: "Walnut", supplier: "ABC Foods", origin: "VIC", price: 100, stock: 120, status: "Active" },
-    { id: "8", name: "Spiced Beef", supplier: "ABC Foods", origin: "NSW", price: 100, stock: 100, status: "Active" },
-    { id: "7", name: "Orange Juice", supplier: "Fresh Co", origin: "SA", price: 6, stock: 280, status: "Active" },
-    { id: "6", name: "Milk 2L", supplier: "Dairy Best", origin: "VIC", price: 4, stock: 60, status: "Inactive" },
-    { id: "5", name: "Rice 5kg", supplier: "Good Grains", origin: "QLD", price: 18, stock: 42, status: "Active" },
-    { id: "4", name: "Soy Sauce", supplier: "ABC Foods", origin: "NSW", price: 8, stock: 150, status: "Active" },
-];
-
-const columns: ColumnDef<TableRow>[] = [
+const inboundData: InboundItem[] = [
     {
-        accessorKey: "id",
-        header: "No.",
-        cell: ({ row }) => <span className="text-muted-foreground">{row.original.id}</span>,
-    },
-    { accessorKey: "name", header: "Product Name" },
-    { accessorKey: "supplier", header: "Supplier" },
-    { accessorKey: "origin", header: "Origin" },
-    {
-        accessorKey: "price",
-        header: "Price",
-        cell: ({ row }) => <span className="tabular-nums">${row.original.price}</span>,
+        id: "#INB-8842-X",
+        supplier: "Global Logistics Co.",
+        supplierId: "SUP-2991",
+        warehouse: "Central DC",
+        items: 24,
+        expectedQty: 1200,
+        receivedQty: 1200,
+        date: "Today, 09:45 AM",
+        status: "Completed",
     },
     {
-        accessorKey: "stock",
-        header: "Stock",
-        cell: ({ row }) => <span className="tabular-nums">{row.original.stock}</span>,
+        id: "#INB-8839-A",
+        supplier: "Advanced Electronics Ltd",
+        supplierId: "SUP-1102",
+        warehouse: "West Coast Hub",
+        items: 12,
+        expectedQty: 850,
+        receivedQty: 420,
+        date: "Yesterday",
+        status: "Partially Received",
     },
     {
-        accessorKey: "status",
-        header: "Status",
-        cell: ({ row }) =>
-            row.original.status === "Active" ? (
-                <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">Active</Badge>
-            ) : (
-                <Badge variant="secondary">Inactive</Badge>
-            ),
+        id: "#INB-8835-E",
+        supplier: "Summit Manufacturing",
+        supplierId: "SUP-5582",
+        warehouse: "East Coast Annex",
+        items: 5,
+        expectedQty: 300,
+        receivedQty: 280,
+        date: "Oct 24, 2023",
+        status: "Exception",
     },
     {
-        id: "actions",
-        header: "Actions",
-        cell: ({ row }) => (
-            <div className="flex gap-2 justify-end">
-                <Button size="sm" variant="outline" onClick={() => console.log("edit", row.original.id)}>
-                    Edit
-                </Button>
-                <Button size="sm" variant="destructive" onClick={() => console.log("delete", row.original.id)}>
-                    Delete
-                </Button>
-            </div>
-        ),
+        id: "#INB-8831-P",
+        supplier: "Northern Sourcing Group",
+        supplierId: "SUP-0041",
+        warehouse: "Central DC",
+        items: 105,
+        expectedQty: 5000,
+        receivedQty: 0,
+        date: "Expected Oct 31",
+        status: "Pending",
     },
 ];
 
-export default function InboundPage() {
-    // Filters
-    const [supplier, setSupplier] = React.useState("");
-    const [product, setProduct] = React.useState("");
+function cn(...classes: Array<string | false | undefined>) {
+    return classes.filter(Boolean).join(" ");
+}
 
-    // Table data (local mock)
-    const [rows, setRows] = React.useState<TableRow[]>(mockData);
-
-    // Selection
-    const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({});
-
-    // Pagination
-    const [pageIndex, setPageIndex] = React.useState(0);
-    const [pageSize, setPageSize] = React.useState(10);
-
-    // Filtered rows (client-side)
-    const filteredRows = React.useMemo(() => {
-        const s = supplier.trim().toLowerCase();
-        const p = product.trim().toLowerCase();
-
-        return rows.filter((r) => {
-            const okSupplier = !s || r.supplier.toLowerCase().includes(s);
-            const okProduct = !p || r.name.toLowerCase().includes(p);
-            return okSupplier && okProduct;
-        });
-    }, [rows, supplier, product]);
-
-    // Paging (client-side)
-    const totalCount = filteredRows.length;
-    const pageCount = Math.max(1, Math.ceil(totalCount / pageSize));
-
-    // Keep pageIndex in range when filters/pageSize change
-    React.useEffect(() => {
-        setPageIndex((prev) => Math.min(prev, pageCount - 1));
-    }, [pageCount]);
-
-    const pageData = React.useMemo(() => {
-        const start = pageIndex * pageSize;
-        return filteredRows.slice(start, start + pageSize);
-    }, [filteredRows, pageIndex, pageSize]);
-
-    // Selected row ids (TanStack uses row index keys, not your id)
-    const selectedRowIndexes = Object.keys(rowSelection).filter((k) => (rowSelection as Record<string, boolean>)[k]);
-    const hasSelected = selectedRowIndexes.length > 0;
-
-    function handleSearch() {
-        // For mock filtering, nothing special to do (it's reactive),
-        // but we reset to first page to match typical UX.
-        setPageIndex(0);
-    }
-
-    function handleReset() {
-        setSupplier("");
-        setProduct("");
-        setPageIndex(0);
-    }
-
-    function handleAdd() {
-        // Mock add a new row
-        const newId = String(Date.now()).slice(-6);
-        const newRow: TableRow = {
-            id: newId,
-            name: `New Product ${newId}`,
-            supplier: "New Supplier",
-            origin: "SA",
-            price: 1,
-            stock: 1,
-            status: "Active",
-        };
-        setRows((prev) => [newRow, ...prev]);
-        setPageIndex(0);
-        setRowSelection({});
-    }
-
-    function handleBatchDelete() {
-        // Because rowSelection is based on current page row indexes,
-        // we delete by mapping selected row indexes to actual row ids in pageData.
-        const idsToDelete = selectedRowIndexes
-            .map((idx) => pageData[Number(idx)]?.id)
-            .filter(Boolean) as string[];
-
-        if (idsToDelete.length === 0) return;
-
-        setRows((prev) => prev.filter((r) => !idsToDelete.includes(r.id)));
-        setRowSelection({});
-    }
+function ProgressBar({
+    expected,
+    received,
+}: {
+    expected: number;
+    received: number;
+}) {
+    const percent = Math.min((received / expected) * 100, 100);
 
     return (
-        <div className="space-y-4">
-            <FilterBar
-                fields={
-                    <>
-                        <Input
-                            className="w-[240px]"
-                            placeholder="Please enter supplier name"
-                            value={supplier}
-                            onChange={(e) => setSupplier(e.target.value)}
-                        />
-                        <Input
-                            className="w-[240px]"
-                            placeholder="Please enter product name"
-                            value={product}
-                            onChange={(e) => setProduct(e.target.value)}
-                        />
-                    </>
+        <div className="mt-1 h-1.5 w-[80px] rounded-full bg-slate-200">
+            <div
+                className={cn(
+                    "h-full rounded-full",
+                    percent === 100
+                        ? "bg-emerald-500"
+                        : percent > 50
+                            ? "bg-blue-500"
+                            : "bg-rose-500"
+                )}
+                style={{ width: `${percent}%` }}
+            />
+        </div>
+    );
+}
+
+function StatusBadge({ status }: { status: InboundStatus }) {
+    const map = {
+        Completed: "bg-emerald-50 text-emerald-600",
+        "Partially Received": "bg-blue-50 text-blue-600",
+        Exception: "bg-rose-50 text-rose-600",
+        Pending: "bg-slate-100 text-slate-500",
+    };
+
+    return (
+        <span className={cn("px-3 py-1 text-xs rounded-full font-semibold", map[status])}>
+            {status.toUpperCase()}
+        </span>
+    );
+}
+
+export default function InboundPage() {
+    const [currentPage, setCurrentPage] = useState(1);
+
+    const pageSize = 4;
+
+    const paged = inboundData.slice(
+        (currentPage - 1) * pageSize,
+        currentPage * pageSize
+    );
+
+    const filterFields: FilterField[] = [
+        {
+            key: "warehouse",
+            type: "select",
+            label: "Warehouse",
+            value: "central",
+            onChange: () => { },
+            options: [
+                { label: "Central Distribution Center", value: "central" },
+            ],
+        },
+        {
+            key: "status",
+            type: "select",
+            label: "Status",
+            value: "all",
+            onChange: () => { },
+            options: [{ label: "All Statuses", value: "all" }],
+        },
+        {
+            key: "date",
+            type: "select",
+            label: "Date Range",
+            value: "oct",
+            onChange: () => { },
+            options: [{ label: "Oct 01 - Oct 31", value: "oct" }],
+        },
+    ];
+
+    const columns = [
+        {
+            key: "id",
+            title: "Inbound No",
+            render: (i: InboundItem) => (
+                <span className="text-[#175CFF] font-semibold">{i.id}</span>
+            ),
+        },
+        {
+            key: "supplier",
+            title: "Supplier",
+            render: (i: InboundItem) => (
+                <div>
+                    <div className="font-semibold">{i.supplier}</div>
+                    <div className="text-xs text-slate-400">ID: {i.supplierId}</div>
+                </div>
+            ),
+        },
+        {
+            key: "warehouse",
+            title: "Warehouse",
+            render: (i: InboundItem) => i.warehouse,
+        },
+        {
+            key: "items",
+            title: "Items",
+            render: (i: InboundItem) => `${i.items} SKUs`,
+        },
+        {
+            key: "qty",
+            title: "Qty (Exp/Rec)",
+            render: (i: InboundItem) => (
+                <div>
+                    <div className="font-semibold">
+                        {i.expectedQty.toLocaleString()} / {i.receivedQty.toLocaleString()}
+                    </div>
+                    <ProgressBar expected={i.expectedQty} received={i.receivedQty} />
+                </div>
+            ),
+        },
+        {
+            key: "date",
+            title: "Received At",
+            render: (i: InboundItem) => i.date,
+        },
+        {
+            key: "status",
+            title: "Status",
+            render: (i: InboundItem) => <StatusBadge status={i.status} />,
+        },
+        {
+            key: "actions",
+            title: "Actions",
+            render: () => (
+                <span className="text-slate-400 text-xl">⋯</span>
+            ),
+        },
+    ];
+
+    return (
+        <div className="space-y-6">
+            {/* Header */}
+            <div className="flex justify-between items-center">
+                <div>
+                    <h1 className="text-3xl font-semibold">Inbound Management</h1>
+                    <p className="text-slate-500">
+                        Manage and track inventory incoming into your facilities.
+                    </p>
+                </div>
+
+                <Button>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Create Inbound
+                </Button>
+            </div>
+
+            {/* KPI */}
+            <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-5">
+                <KpiCard title="Inbound This Month" value="42" />
+                <KpiCard title="Pending Receiving" value="8" />
+                <KpiCard title="Received Today" value="5" />
+                <KpiCard title="Exceptions" value="2" />
+            </div>
+
+            {/* Filters */}
+            <DataFilterBar
+                fields={filterFields}
+                actionSlot={
+                    <div className="flex gap-2">
+                        <Button size="icon" variant="ghost">
+                            <Filter />
+                        </Button>
+                        <Button size="icon" variant="ghost">
+                            <Download />
+                        </Button>
+                    </div>
                 }
-                primaryActions={[
-                    { key: "search", label: "Search", variant: "secondary", onClick: handleSearch },
-                    { key: "reset", label: "Reset", variant: "outline", onClick: handleReset },
-                ]}
             />
 
+            {/* Table */}
             <DataTable
+                data={paged}
                 columns={columns}
-                data={pageData}
-                enableRowSelection
-                rowSelection={rowSelection}
-                onRowSelectionChange={setRowSelection}
-                pageIndex={pageIndex}
-                pageSize={pageSize}
-                pageCount={pageCount}
-                totalCount={totalCount}
-                onPageChange={setPageIndex}
-                onPageSizeChange={(s) => {
-                    setPageSize(s);
-                    setPageIndex(0);
-                    setRowSelection({});
+                rowKey={(i: InboundItem) => i.id}
+                selectable={false}
+                pagination={{
+                    currentPage,
+                    totalPages: Math.ceil(inboundData.length / pageSize),
+                    totalItems: inboundData.length,
+                    pageSize,
+                    onPageChange: setCurrentPage,
                 }}
-                actions={[
-                    { key: "add", label: "Add", variant: "secondary", onClick: handleAdd },
-                    { key: "batchDel", label: "Batch Delete", variant: "destructive", disabled: !hasSelected, onClick: handleBatchDelete },
-                ]}
             />
         </div>
     );

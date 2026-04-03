@@ -3,7 +3,6 @@ import Link from "next/link";
 import { ChevronDown } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-
 export default function NavGroup({
     label,
     icon: Icon,
@@ -19,14 +18,18 @@ export default function NavGroup({
         (c) => pathname === c.href || pathname.startsWith(c.href + "/")
     );
 
-    const [userOpened, setUserOpened] = useState<boolean>(false);
-    const open = childActive || userOpened;
+    // null = follow route state
+    // true = user forced open
+    // false = user forced close
+    const [manualOpen, setManualOpen] = useState<boolean | null>(null);
+
+    const open = manualOpen ?? childActive;
 
     return (
         <div>
             <button
                 type="button"
-                onClick={() => setUserOpened((v) => !v)}
+                onClick={() => setManualOpen((prev) => !(prev ?? childActive))}
                 className="w-full text-left"
             >
                 <div className="erp-nav-item erp-nav-parent flex items-center justify-between">
@@ -37,8 +40,7 @@ export default function NavGroup({
 
                     <ChevronDown
                         size={14}
-                        className={`transition-transform ${open ? "rotate-180" : ""
-                            }`}
+                        className={`transition-transform ${open ? "rotate-180" : ""}`}
                     />
                 </div>
             </button>
@@ -57,10 +59,7 @@ export default function NavGroup({
                                         active ? "active" : "",
                                     ].join(" ")}
                                 >
-                                    <div className="pl-6">
-                                        {c.label}
-                                    </div>
-
+                                    <div className="pl-6">{c.label}</div>
                                 </div>
                             </Link>
                         );

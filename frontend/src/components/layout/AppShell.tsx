@@ -126,7 +126,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
             <div className="grid h-full grid-cols-[240px_1fr]">
                 {/* Sidebar */}
                 <aside className="flex h-full flex-col erp-sidebar">
-                    <div className="erp-brand shrink-0">LOGER ONE</div>
+                    <div className="erp-brand shrink-0 ">LOGER ONE</div>
 
                     <nav className="erp-nav min-h-0 flex-1 overflow-y-auto">
                         {nav.map((item) => {
