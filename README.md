@@ -15,7 +15,8 @@ Detailed documentation is maintained in Notion:
 - Software Requirements Specification  
 - Architecture Design  
 - Development Roadmap  
-- Identity & Security Design  
+- Identity & Security Design
+- Environment and Branch Strategy : https://www.yuque.com/u21649619/kb/dra7av4g9an1st8q
 
 
 
