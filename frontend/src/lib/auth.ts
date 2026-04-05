@@ -5,6 +5,7 @@ import {
   signIn,
   signOut,
 } from "aws-amplify/auth";
+import type { SignInOutput } from "aws-amplify/auth";
 
 const userPoolId = process.env.NEXT_PUBLIC_COGNITO_USER_POOL_ID!;
 const userPoolClientId = process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID!;
@@ -76,6 +77,7 @@ export async function isSignedIn(): Promise<boolean> {
 
 export async function startHostedLogin(options?: { redirectTo?: string }) {
   const signedIn = await isSignedIn();
+
   if (signedIn) {
     window.location.href = options?.redirectTo ?? "/dashboard";
     return;
@@ -84,16 +86,36 @@ export async function startHostedLogin(options?: { redirectTo?: string }) {
   await signInWithRedirect();
 }
 
-export async function loginWithPassword(email: string, password: string) {
+export type PasswordLoginResult = {
+  isSignedIn: boolean;
+  nextStep: SignInOutput["nextStep"] | null;
+  alreadySignedIn: boolean;
+};
+
+export async function loginWithPassword(
+  email: string,
+  password: string
+): Promise<PasswordLoginResult> {
   const signedIn = await isSignedIn();
+
   if (signedIn) {
-    return { alreadySignedIn: true };
+    return {
+      isSignedIn: true,
+      nextStep: null,
+      alreadySignedIn: true,
+    };
   }
 
-  return await signIn({
+  const res = await signIn({
     username: email,
     password,
   });
+
+  return {
+    isSignedIn: res.isSignedIn,
+    nextStep: res.nextStep,
+    alreadySignedIn: false,
+  };
 }
 
 export async function logout() {
@@ -117,11 +139,14 @@ export async function getAccessToken(): Promise<string | null> {
 
 export async function waitForToken(maxMs = 4000): Promise<string | null> {
   const start = Date.now();
+
   while (Date.now() - start < maxMs) {
     const token = await getAccessToken();
     if (token) return token;
-    await new Promise((r) => setTimeout(r, 200));
+
+    await new Promise((resolve) => setTimeout(resolve, 200));
   }
+
   return null;
 }
 
