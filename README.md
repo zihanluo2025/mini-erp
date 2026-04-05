@@ -31,12 +31,6 @@ Detailed documentation is maintained in Notion:
 
 
 
-
-
-
-
-<img width="2880" height="1558" alt="image" src="https://github.com/user-attachments/assets/22fa4345-e299-473a-af98-0056f9aecfc7" />
-
 <img width="2240" height="1006" alt="image" src="https://github.com/user-attachments/assets/8cdc08cb-ddb1-4e16-bfc3-77cf1b752007" />
 
 
