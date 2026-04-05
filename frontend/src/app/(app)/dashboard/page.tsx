@@ -1,10 +1,10 @@
 "use client";
 
-import DashboardHeader from "@/components/dashboard/DashboardHeader";
-import KpiGrid from "@/components/dashboard/KpiGrid";
-import SalesTrendCard from "@/components/dashboard/SalesTrendCard";
-import InventoryPieCard from "@/components/dashboard/InventoryPieCard";
-import NoticeListCard from "@/components/dashboard/NoticeListCard";
+import DashboardHeader from "@/app/(app)/dashboard/_components/DashboardHeader";
+import KpiGrid from "@/app/(app)/dashboard/_components/KpiGrid";
+import SalesTrendCard from "@/app/(app)/dashboard/_components/SalesTrendCard";
+import InventoryPieCard from "@/app/(app)/dashboard/_components/InventoryPieCard";
+import NoticeListCard from "@/app/(app)/dashboard/_components/NoticeListCard";
 
 import {
     KPI_ITEMS,
