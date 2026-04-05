@@ -1,0 +1,57 @@
+#!/bin/sh
+
+echo "Detecting changed files for pre-push checks..."
+
+CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
+UPSTREAM=$(git for-each-ref --format='%(upstream:short)' "refs/heads/$CURRENT_BRANCH")
+
+BASE_REF=""
+
+if [ -n "$UPSTREAM" ]; then
+  echo "Upstream branch found: $UPSTREAM"
+  BASE_REF="$UPSTREAM"
+else
+  echo "No upstream branch found. First push detected."
+
+  if git show-ref --verify --quiet refs/remotes/origin/dev; then
+    BASE_REF="origin/dev"
+  elif git show-ref --verify --quiet refs/remotes/origin/main; then
+    BASE_REF="origin/main"
+  else
+    echo "No origin/dev or origin/main found. Fallback to checking both frontend and backend."
+    BASE_REF=""
+  fi
+fi
+
+if [ -n "$BASE_REF" ]; then
+  CHANGED_FILES=$(git diff --name-only "$BASE_REF"...HEAD)
+else
+  CHANGED_FILES=$(git ls-files)
+fi
+
+echo "Changed files:"
+echo "$CHANGED_FILES"
+
+RUN_FRONTEND=false
+RUN_BACKEND=false
+
+echo "$CHANGED_FILES" | grep -Eq '^frontend/' && RUN_FRONTEND=true
+echo "$CHANGED_FILES" | grep -Eq '^backend/' && RUN_BACKEND=true
+
+if [ "$RUN_FRONTEND" = false ] && [ "$RUN_BACKEND" = false ]; then
+  echo "No frontend/backend changes detected. Skipping checks."
+  exit 0
+fi
+
+if [ "$RUN_FRONTEND" = true ]; then
+  echo "Running frontend checks..."
+  npm run frontend:check || exit 1
+fi
+
+if [ "$RUN_BACKEND" = true ]; then
+  echo "Running backend checks..."
+  npm run backend:build || exit 1
+  npm run backend:test || exit 1
+fi
+
+echo "Pre-push checks passed."

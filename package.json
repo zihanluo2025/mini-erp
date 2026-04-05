@@ -1,0 +1,16 @@
+{
+  "name": "mini-erp",
+  "private": true,
+  "scripts": {
+    "prepare": "husky",
+    "frontend:lint": "npm --prefix frontend run lint",
+    "frontend:type-check": "npm --prefix frontend run type-check",
+    "frontend:build": "npm --prefix frontend run build",
+    "frontend:check": "npm --prefix frontend run check",
+    "backend:build": "dotnet build ./backend --configuration Release",
+    "backend:test": "dotnet test ./backend --configuration Release"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7"
+  }
+}
