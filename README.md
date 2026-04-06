@@ -17,6 +17,7 @@ Detailed documentation is maintained in Notion:
 - Development Roadmap  
 - Identity & Security Design
 - Environment and Branch Strategy : https://www.yuque.com/u21649619/kb/dra7av4g9an1st8q
+- Figma design : https://www.figma.com/design/GspkCHpXYodoX295ThzzpK/LegerOne?t=aWy6DzUJO9TJqyOs-0
 
 
 
