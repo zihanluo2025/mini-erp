@@ -14,7 +14,7 @@ public sealed class UpdateSupplierRequest
 
     [Required]
     [MaxLength(100)]
-    public string PrimaryCategory { get; set; } = default!;
+    public string category { get; set; } = default!;
 
     [Required]
     [MaxLength(100)]

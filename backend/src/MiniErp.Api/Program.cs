@@ -2,16 +2,20 @@ using MiniErp.Application.Abstractions;
 using MiniErp.Application.Products;
 using MiniErp.Application.Users;
 using MiniErp.Application.Suppliers;
+using MiniErp.Application.Customers;
 
 using MiniErp.Domain.Auth;
 using MiniErp.Infrastructure.Common;
 using MiniErp.Infrastructure.Products;
 using MiniErp.Infrastructure.Users;
+using MiniErp.Infrastructure.Suppliers;
+using MiniErp.Infrastructure.Customers;
+
 using Amazon.DynamoDBv2;
-using Amazon.Lambda.AspNetCoreServer.Hosting;
+// using Amazon.Lambda.AspNetCoreServer.Hosting;
 using Amazon.CognitoIdentityProvider;
 using System.Text.Json.Serialization;
-using MiniErp.Infrastructure.Suppliers;
+
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -23,7 +27,13 @@ builder.Services.AddAWSLambdaHosting(LambdaEventSource.HttpApi);
 
 builder.Services.AddControllers();
 builder.Services.AddScoped<SupplierService>();
+builder.Services.AddScoped<ProductService>();
+builder.Services.AddScoped<CustomerService>();
+
 builder.Services.AddScoped<ISupplierRepository, SupplierRepository>();
+builder.Services.AddScoped<ICustomerRepository, CustomerRepository>();
+builder.Services.AddScoped<IUserDirectory, CognitoUserDirectory>();
+
 
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
@@ -78,7 +88,7 @@ else
 builder.Services.AddAWSService<IAmazonCognitoIdentityProvider>();
 builder.Services.AddSingleton<IUserDirectory, CognitoUserDirectory>();
 
-builder.Services.AddScoped<ProductService>();
+
 
 var app = builder.Build();
 app.UseCors("AllowFrontend");
