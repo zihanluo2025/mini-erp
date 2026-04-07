@@ -37,7 +37,7 @@ public sealed class SupplierRepository : ISupplierRepository
             Guid.NewGuid().ToString("N"),
             request.SupplierCode,
             request.SupplierName,
-            request.PrimaryCategory,
+            request.category,
             request.ContactPerson,
             request.ContactEmail,
             request.ContactPhone,
@@ -65,7 +65,7 @@ public sealed class SupplierRepository : ISupplierRepository
         {
             SupplierCode = request.SupplierCode,
             SupplierName = request.SupplierName,
-            PrimaryCategory = request.PrimaryCategory,
+            category = request.category,
             ContactPerson = request.ContactPerson,
             ContactEmail = request.ContactEmail,
             ContactPhone = request.ContactPhone,

@@ -4,7 +4,7 @@ public sealed record SupplierDto(
     string Id,
     string SupplierCode,
     string SupplierName,
-    string PrimaryCategory,
+    string category,
     string ContactPerson,
     string? ContactEmail,
     string? ContactPhone,

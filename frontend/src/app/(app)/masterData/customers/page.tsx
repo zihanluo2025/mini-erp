@@ -1,17 +1,16 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
     Crown,
     Download,
-    Filter,
+    Pencil,
     Plus,
     RefreshCw,
     Sparkles,
-    Users,
-    UserCheck,
     Trash2,
-    Pencil,
+    UserCheck,
+    Users,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -20,177 +19,138 @@ import type { FilterField } from "@/components/common/data-filter-bar/types";
 import KpiCard from "@/components/common/kpi-card";
 import DataTable from "@/components/common/data-table";
 import PageHeader from "@/components/common/PageHeader";
-import { fi } from "zod/locales";
 import { DataTableColumn } from "@/components/common/data-table/types";
+import CustomerDrawer from "./_components/CustomerDrawer";
 
-type CustomerStatus = "VIP" | "Active" | "New" | "Inactive";
-type CustomerSegment = "Enterprise" | "SME" | "Startup";
-type CustomerRegion = "North America" | "Europe" | "Asia Pacific";
+import { useConfirm } from "@/hooks/use-confirm";
 
-type CustomerItem = {
+import {
+    createCustomer,
+    deleteCustomer,
+    listCustomers,
+    updateCustomer,
+} from "@/lib/apis/customers";
+
+import type {
+    Customer,
+    CustomerFormValues,
+    CustomerSegment,
+    CustomerStatus,
+} from "@/types/customer";
+
+type DrawerMode = "create" | "edit";
+
+type CustomerViewItem = {
     id: string;
-    name: string;
-    avatar: string;
-    company: string;
+    customerCode: string;
+    customerName: string;
+    companyName: string;
     segment: CustomerSegment;
-    email: string;
-    phone: string;
-    orders: number;
-    totalSpend: number;
+    contactPerson: string;
+    contactEmail: string;
+    contactPhone: string;
     status: CustomerStatus;
-    region: CustomerRegion;
+    region: string;
 };
-
-const customerData: CustomerItem[] = [
-    {
-        id: "1",
-        name: "Marcus Thorne",
-        avatar:
-            "https://api.dicebear.com/7.x/adventurer/svg?seed=Marcus",
-        company: "Thorne Dynamics",
-        segment: "Enterprise",
-        email: "m.thorne@thdyn.com",
-        phone: "+1 (555) 012-9988",
-        orders: 142,
-        totalSpend: 248120,
-        status: "VIP",
-        region: "North America",
-    },
-    {
-        id: "2",
-        name: "Elena Rodriguez",
-        avatar:
-            "https://api.dicebear.com/7.x/adventurer/svg?seed=Elena",
-        company: "Global Logistics Corp",
-        segment: "SME",
-        email: "elena.r@glc.io",
-        phone: "+1 (555) 882-1100",
-        orders: 56,
-        totalSpend: 84500.5,
-        status: "Active",
-        region: "Europe",
-    },
-    {
-        id: "3",
-        name: "Julian Park",
-        avatar:
-            "https://api.dicebear.com/7.x/adventurer/svg?seed=Julian",
-        company: "Nova Stream Studio",
-        segment: "Startup",
-        email: "jpark@novastream.com",
-        phone: "+1 (555) 443-2211",
-        orders: 12,
-        totalSpend: 12940,
-        status: "New",
-        region: "Asia Pacific",
-    },
-    {
-        id: "4",
-        name: "Sarah Jenkins",
-        avatar:
-            "https://api.dicebear.com/7.x/adventurer/svg?seed=Sarah",
-        company: "Jenkins Estates",
-        segment: "SME",
-        email: "s.jenkins@estates.org",
-        phone: "+1 (555) 990-8877",
-        orders: 84,
-        totalSpend: 112000,
-        status: "Inactive",
-        region: "North America",
-    },
-    {
-        id: "5",
-        name: "Daniel Foster",
-        avatar:
-            "https://api.dicebear.com/7.x/adventurer/svg?seed=Daniel",
-        company: "Foster Industrial",
-        segment: "Enterprise",
-        email: "daniel@fosterind.com",
-        phone: "+1 (555) 731-4100",
-        orders: 97,
-        totalSpend: 198450,
-        status: "Active",
-        region: "Europe",
-    },
-    {
-        id: "6",
-        name: "Ava Kim",
-        avatar:
-            "https://api.dicebear.com/7.x/adventurer/svg?seed=Ava",
-        company: "BluePeak Labs",
-        segment: "Startup",
-        email: "ava@bluepeak.ai",
-        phone: "+1 (555) 120-4433",
-        orders: 8,
-        totalSpend: 6840,
-        status: "New",
-        region: "Asia Pacific",
-    },
-];
 
 function cn(...classes: Array<string | false | undefined>) {
     return classes.filter(Boolean).join(" ");
 }
 
-function formatCurrency(amount: number) {
-    return `$${amount.toLocaleString(undefined, {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-    })}`;
+function normalizeValue(value?: string | null) {
+    return (value ?? "").toLowerCase().trim().replace(/\s+/g, "-");
 }
 
-function CustomerCell({ item }: { item: CustomerItem }) {
+function mapCustomerToViewItem(customer: Customer): CustomerViewItem {
+    return {
+        id: String(customer.id ?? ""),
+        customerCode: customer.customerCode ?? "-",
+        customerName: customer.customerName ?? "Unnamed Customer",
+        companyName: customer.companyName ?? "-",
+        segment: customer.segment ?? "SME",
+        contactPerson: customer.contactPerson ?? "-",
+        contactEmail: customer.contactEmail ?? "-",
+        contactPhone: customer.contactPhone ?? "-",
+        status: customer.status ?? "Active",
+        region: customer.region ?? "-",
+    };
+}
+
+function getInitials(name: string) {
+    return name
+        .split(" ")
+        .map((part) => part[0])
+        .join("")
+        .slice(0, 2)
+        .toUpperCase();
+}
+
+function CustomerCell({ item }: { item: CustomerViewItem }) {
     return (
         <div className="flex items-center gap-4">
-            <div className="h-12 w-12 overflow-hidden rounded-full border border-slate-200 bg-slate-50">
-                <img
-                    src={item.avatar}
-                    alt={item.name}
-                    className="h-full w-full object-cover"
-                />
+            <div className="flex h-12 w-12 items-center justify-center rounded-full border border-slate-200 bg-[#EEF4FF] text-sm font-bold text-[#5B7BEA]">
+                {getInitials(item.customerName)}
             </div>
 
             <div>
                 <button className="text-left text-[16px] font-bold leading-6 text-[#183B6B] hover:underline">
-                    {item.name}
+                    {item.customerName}
                 </button>
+                <div className="text-xs text-slate-400">ID: {item.customerCode}</div>
             </div>
         </div>
     );
 }
 
-function CompanyCell({ item }: { item: CustomerItem }) {
+function CompanyCell({ item }: { item: CustomerViewItem }) {
     return (
-        <div className="max-w-[160px] text-[15px] font-semibold leading-8 text-[#4A5C78]">
-            {item.company}
+        <div className="max-w-[180px] text-[15px] font-semibold leading-6 text-[#4A5C78]">
+            {item.companyName}
         </div>
     );
 }
 
-function ContactCell({ item }: { item: CustomerItem }) {
+function ContactCell({ item }: { item: CustomerViewItem }) {
     return (
         <div>
-            <div className="text-[16px] font-semibold text-[#111827]">
-                {item.email}
+            <div className="text-[14px] font-semibold text-[#111827]">
+                {item.contactEmail}
             </div>
-            <div className="text-sm text-slate-400">{item.phone}</div>
+            <div className="text-sm text-slate-400">{item.contactPhone}</div>
         </div>
+    );
+}
+
+function SegmentBadge({ segment }: { segment: CustomerSegment }) {
+    const classMap: Record<CustomerSegment, string> = {
+        Enterprise: "bg-[#E8EEFF] text-[#2D6BCF]",
+        SME: "bg-[#E8FAF6] text-[#0F8F83]",
+        Startup: "bg-[#F2EAFE] text-[#8B5CF6]",
+    };
+
+    return (
+        <span
+            className={cn(
+                "inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold",
+                classMap[segment]
+            )}
+        >
+            {segment}
+        </span>
     );
 }
 
 function StatusBadge({ status }: { status: CustomerStatus }) {
-    const classMap = {
-        VIP: "border-[#E6D9FA] bg-[#F2EAFE] text-[#6E56A8]",
+    const classMap: Record<CustomerStatus, string> = {
         Active: "border-emerald-200 bg-emerald-50 text-emerald-700",
-        New: "border-blue-200 bg-blue-50 text-[#2563EB]",
         Inactive: "border-slate-200 bg-slate-100 text-slate-500",
+        Prospect: "border-blue-200 bg-blue-50 text-[#2563EB]",
     };
 
-    const dotMap = {
-        VIP: "bg-[#8B5CF6]",
+    const dotMap: Record<CustomerStatus, string> = {
         Active: "bg-emerald-500",
-        New: "bg-[#2563EB]",
         Inactive: "bg-slate-400",
+        Prospect: "bg-[#2563EB]",
     };
 
     return (
@@ -207,36 +167,109 @@ function StatusBadge({ status }: { status: CustomerStatus }) {
 }
 
 export default function CustomersPage() {
+    const { confirm } = useConfirm();
+
     const [search, setSearch] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
     const [segment, setSegment] = useState("all");
     const [status, setStatus] = useState("all");
     const [region, setRegion] = useState("all");
 
+    const [customers, setCustomers] = useState<Customer[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    const [drawerOpen, setDrawerOpen] = useState(false);
+    const [drawerMode, setDrawerMode] = useState<DrawerMode>("create");
+    const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+
     const pageSize = 4;
+
+    async function loadCustomers() {
+        try {
+            setLoading(true);
+            const data = await listCustomers();
+            setCustomers(data.items ?? []);
+        } catch (error) {
+            console.error("Failed to load customers:", error);
+            setCustomers([]);
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    useEffect(() => {
+        loadCustomers();
+    }, []);
+
+    function handleOpenCreate() {
+        setDrawerMode("create");
+        setEditingCustomer(null);
+        setDrawerOpen(true);
+    }
+
+    function handleOpenEdit(customer: Customer) {
+        setDrawerMode("edit");
+        setEditingCustomer(customer);
+        setDrawerOpen(true);
+    }
+
+    async function handleDelete(customer: Customer) {
+        const ok = await confirm({
+            title: "Delete customer?",
+            description: `This action will permanently delete "${customer.customerName}". This cannot be undone.`,
+            confirmText: "Delete",
+            cancelText: "Cancel",
+            variant: "destructive",
+        });
+
+        if (!ok) return;
+
+        try {
+            await deleteCustomer(customer.id);
+            await loadCustomers();
+        } catch (error) {
+            console.error("Failed to delete customer:", error);
+        }
+    }
+
+    async function handleSubmit(values: CustomerFormValues) {
+        if (drawerMode === "create") {
+            await createCustomer(values);
+        } else if (editingCustomer) {
+            await updateCustomer(editingCustomer.id, values);
+        }
+
+        setDrawerOpen(false);
+        await loadCustomers();
+    }
+
+    const tableData = useMemo<CustomerViewItem[]>(() => {
+        return customers.map(mapCustomerToViewItem);
+    }, [customers]);
 
     const filteredData = useMemo(() => {
         const keyword = search.trim().toLowerCase();
 
-        return customerData.filter((item) => {
+        return tableData.filter((item) => {
             const matchKeyword =
                 !keyword ||
-                item.name.toLowerCase().includes(keyword) ||
-                item.company.toLowerCase().includes(keyword) ||
-                item.id.toLowerCase().includes(keyword);
+                item.customerName.toLowerCase().includes(keyword) ||
+                item.companyName.toLowerCase().includes(keyword) ||
+                item.customerCode.toLowerCase().includes(keyword) ||
+                item.contactEmail.toLowerCase().includes(keyword);
 
             const matchSegment =
-                segment === "all" || item.segment.toLowerCase() === segment;
+                segment === "all" || normalizeValue(item.segment) === segment;
 
             const matchStatus =
-                status === "all" || item.status.toLowerCase() === status;
+                status === "all" || normalizeValue(item.status) === status;
 
-            const normalizedRegion = item.region.toLowerCase().replace(/\s+/g, "-");
-            const matchRegion = region === "all" || normalizedRegion === region;
+            const matchRegion =
+                region === "all" || normalizeValue(item.region) === region;
 
             return matchKeyword && matchSegment && matchStatus && matchRegion;
         });
-    }, [search, segment, status, region]);
+    }, [tableData, search, segment, status, region]);
 
     const totalPages = Math.max(1, Math.ceil(filteredData.length / pageSize));
 
@@ -244,6 +277,31 @@ export default function CustomersPage() {
         const start = (currentPage - 1) * pageSize;
         return filteredData.slice(start, start + pageSize);
     }, [filteredData, currentPage]);
+
+    useEffect(() => {
+        if (currentPage > totalPages) {
+            setCurrentPage(1);
+        }
+    }, [currentPage, totalPages]);
+
+    const regionOptions = useMemo(() => {
+        const uniqueRegions = Array.from(
+            new Set(tableData.map((item) => item.region).filter(Boolean))
+        );
+
+        return [
+            { label: "All Regions", value: "all" },
+            ...uniqueRegions.map((item) => ({
+                label: item,
+                value: normalizeValue(item),
+            })),
+        ];
+    }, [tableData]);
+
+    const totalCustomers = tableData.length;
+    const activeCustomers = tableData.filter((item) => item.status === "Active").length;
+    const enterpriseCustomers = tableData.filter((item) => item.segment === "Enterprise").length;
+    const prospectCustomers = tableData.filter((item) => item.status === "Prospect").length;
 
     const filterFields: FilterField[] = [
         {
@@ -254,19 +312,19 @@ export default function CustomersPage() {
                 setSearch(value);
                 setCurrentPage(1);
             },
-            placeholder: "Filter by Name, Company or ID...",
+            placeholder: "Filter by Name, Company, Email or ID...",
         },
         {
             key: "segment",
             type: "select",
-            label: "Segment",
+            label: "",
             value: segment,
             onChange: (value) => {
                 setSegment(value);
                 setCurrentPage(1);
             },
             options: [
-                { label: "All", value: "all" },
+                { label: "All Segments", value: "all" },
                 { label: "Enterprise", value: "enterprise" },
                 { label: "SME", value: "sme" },
                 { label: "Startup", value: "startup" },
@@ -275,102 +333,103 @@ export default function CustomersPage() {
         {
             key: "status",
             type: "select",
-            label: "Status",
+            label: "",
             value: status,
             onChange: (value) => {
                 setStatus(value);
                 setCurrentPage(1);
             },
             options: [
-                { label: "All", value: "all" },
-                { label: "VIP", value: "vip" },
+                { label: "All Status", value: "all" },
                 { label: "Active", value: "active" },
-                { label: "New", value: "new" },
                 { label: "Inactive", value: "inactive" },
+                { label: "Prospect", value: "prospect" },
             ],
         },
         {
             key: "region",
             type: "select",
-            label: "Region",
+            label: "",
             value: region,
             onChange: (value) => {
                 setRegion(value);
                 setCurrentPage(1);
             },
-            options: [
-                { label: "All", value: "all" },
-                { label: "North America", value: "north-america" },
-                { label: "Europe", value: "europe" },
-                { label: "Asia Pacific", value: "asia-pacific" },
-            ],
+            options: regionOptions,
         },
     ];
 
-    const columns: DataTableColumn<CustomerItem>[] = [
+    const columns: DataTableColumn<CustomerViewItem>[] = [
         {
             key: "customer",
             title: "Customer",
-            fixed: "left",
-            render: (item: CustomerItem) => <CustomerCell item={item} />,
+            render: (item: CustomerViewItem) => <CustomerCell item={item} />,
         },
         {
             key: "company",
             title: "Company",
-            render: (item: CustomerItem) => <CompanyCell item={item} />,
+            render: (item: CustomerViewItem) => <CompanyCell item={item} />,
         },
         {
             key: "segment",
             title: "Segment",
-            className: "text-[16px] font-medium text-[#5A6B86]",
-            render: (item: CustomerItem) => item.segment,
+            render: (item: CustomerViewItem) => (
+                <SegmentBadge segment={item.segment} />
+            ),
         },
         {
             key: "contact",
             title: "Contact",
-            render: (item: CustomerItem) => <ContactCell item={item} />,
+            render: (item: CustomerViewItem) => <ContactCell item={item} />,
         },
         {
-            key: "orders",
-            title: "Orders",
-            className: "text-[18px] font-bold text-[#175CFF]",
-            render: (item: CustomerItem) => item.orders,
-        },
-        {
-            key: "totalSpend",
-            title: "Total Spend",
-            className: "text-[18px] font-bold text-[#111827]",
-            render: (item: CustomerItem) => formatCurrency(item.totalSpend),
+            key: "region",
+            title: "Region",
+            className: "text-[14px] font-medium text-[#5A6B86]",
+            render: (item: CustomerViewItem) => item.region,
         },
         {
             key: "status",
             title: "Status",
-            render: (item: CustomerItem) => <StatusBadge status={item.status} />,
+            render: (item: CustomerViewItem) => <StatusBadge status={item.status} />,
         },
         {
             key: "actions",
             title: "Actions",
-            fixed: "right",
-            render: () => {
+            render: (item: CustomerViewItem) => {
+                const originalCustomer = customers.find((c) => String(c.id) === item.id);
+
                 return (
                     <div className="flex items-center gap-2">
-
-                        <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg"
-                        >
-                            <Pencil className="h-4 w-4" />
-                        </Button>
                         <Button
                             variant="ghost"
                             size="icon"
+                            className="h-9 w-9 rounded-lg"
+                            onClick={() => {
+                                if (originalCustomer) {
+                                    handleOpenEdit(originalCustomer);
+                                }
+                            }}
+                        >
+                            <Pencil className="h-4 w-4" />
+                        </Button>
 
+                        <Button
+                            variant="ghost"
+                            size="icon"
                             className="h-9 w-9 rounded-lg text-red-600 hover:bg-red-50 hover:text-red-700"
+                            onClick={() => {
+                                if (originalCustomer) {
+                                    handleDelete(originalCustomer);
+                                }
+                            }}
                         >
                             <Trash2 className="h-4 w-4" />
                         </Button>
                     </div>
-                )
+                );
             },
-        }
+        },
     ];
 
     return (
@@ -383,12 +442,12 @@ export default function CustomersPage() {
                         {
                             label: "Export",
                             icon: <Download size={22} strokeWidth={2.2} />,
-                            onClick: () => console.log("Export clicked")
+                            onClick: () => console.log("Export clicked"),
                         },
                         {
                             label: "Add Customer",
                             icon: <Plus size={22} strokeWidth={2.2} />,
-                            onClick: () => console.log("Add Customer clicked")
+                            onClick: handleOpenCreate,
                         },
                     ]}
                 />
@@ -396,74 +455,74 @@ export default function CustomersPage() {
                 <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
                     <KpiCard
                         title="Total Customers"
-                        value="12,482"
+                        value={loading ? "..." : totalCustomers.toString()}
                         description=""
-                        footer={<span className="rounded-md bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-600">
-                            +12%
-                        </span>}
+                        footer={
+                            <span className="rounded-md bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-600">
+                                Live data
+                            </span>
+                        }
                         rightIcon={
                             <div className="flex items-center gap-3">
                                 <div className="rounded-lg bg-[#EEF4FF] p-3 text-[#5B7BEA]">
                                     <Users className="h-5 w-5" />
                                 </div>
-
                             </div>
                         }
-
                     />
 
                     <KpiCard
                         title="Active Customers"
-                        value="9,210"
+                        value={loading ? "..." : activeCustomers.toString()}
                         description=""
-                        footer={<span className="rounded-md bg-emerald-50 px-3 py-1 text-sm font-semibold text-[#0F8F83]">
-                            +5%
-                        </span>}
+                        footer={
+                            <span className="rounded-md bg-emerald-50 px-3 py-1 text-sm font-semibold text-[#0F8F83]">
+                                Operational
+                            </span>
+                        }
                         rightIcon={
                             <div className="flex items-center gap-3">
                                 <div className="rounded-lg bg-[#E8FAF6] p-3 text-[#14B8A6]">
                                     <UserCheck className="h-5 w-5" />
                                 </div>
-
                             </div>
                         }
-
                     />
 
                     <KpiCard
-                        title="VIP Accounts"
-                        value="428"
+                        title="Enterprise Accounts"
+                        value={loading ? "..." : enterpriseCustomers.toString()}
                         description=""
-                        footer={<span className="text-base font-semibold text-slate-400">
-                            Target: 500
-                        </span>}
+                        footer={
+                            <span className="text-base font-semibold text-slate-400">
+                                Key accounts
+                            </span>
+                        }
                         rightIcon={
                             <div className="flex items-center gap-3">
                                 <div className="rounded-lg bg-[#F2EAFE] p-3 text-[#8B5CF6]">
                                     <Crown className="h-5 w-5" />
                                 </div>
-
                             </div>
                         }
-
                     />
 
                     <KpiCard
-                        title="New This Month"
-                        value="156"
+                        title="Prospects"
+                        value={loading ? "..." : prospectCustomers.toString()}
                         description=""
-                        footer={<span className="rounded-md bg-rose-50 px-3 py-1 text-sm font-semibold text-rose-500">
-                            -2%
-                        </span>}
+                        footer={
+                            <span className="rounded-md bg-blue-50 px-3 py-1 text-sm font-semibold text-blue-600">
+                                Pipeline
+                            </span>
+                        }
                         rightIcon={
                             <div className="flex items-center gap-3">
                                 <div className="rounded-lg bg-[#EEF4FF] p-3 text-[#2563EB]">
                                     <Sparkles className="h-5 w-5" />
                                 </div>
-
                             </div>
                         }
-
                     />
                 </div>
 
@@ -474,6 +533,7 @@ export default function CustomersPage() {
                             variant="ghost"
                             size="icon"
                             className="h-12 w-12 rounded-xl bg-[#EAF1FF] text-[#5B7BEA] hover:bg-[#DFE9FF]"
+                            onClick={loadCustomers}
                         >
                             <RefreshCw className="h-5 w-5" />
                         </Button>
@@ -483,11 +543,12 @@ export default function CustomersPage() {
                 <DataTable
                     data={pagedData}
                     columns={columns}
-                    rowKey={(row: CustomerItem) => row.id}
+                    rowKey={(row: CustomerViewItem) => row.id}
                     selectable={false}
-                    emptyText="No customers found"
+                    emptyText={loading ? "Loading customers..." : "No customers found"}
                     footerLeft={`Showing ${filteredData.length === 0 ? 0 : (currentPage - 1) * pageSize + 1
-                        } to ${Math.min(currentPage * pageSize, filteredData.length)} of ${filteredData.length.toLocaleString()} customers`}
+                        } to ${Math.min(currentPage * pageSize, filteredData.length)} of ${filteredData.length
+                        } customers`}
                     pagination={{
                         currentPage,
                         totalPages,
@@ -495,6 +556,14 @@ export default function CustomersPage() {
                         pageSize,
                         onPageChange: setCurrentPage,
                     }}
+                />
+
+                <CustomerDrawer
+                    open={drawerOpen}
+                    mode={drawerMode}
+                    initialData={editingCustomer}
+                    onClose={() => setDrawerOpen(false)}
+                    onSubmit={handleSubmit}
                 />
             </div>
         </div>
