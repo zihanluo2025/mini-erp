@@ -33,7 +33,7 @@ Detailed documentation is maintained in Notion:
 
 
 
-### Conginito
+### Congnito
 <img width="2240" height="1006" alt="image" src="https://github.com/user-attachments/assets/8cdc08cb-ddb1-4e16-bfc3-77cf1b752007" />
 
 ### Swagger
