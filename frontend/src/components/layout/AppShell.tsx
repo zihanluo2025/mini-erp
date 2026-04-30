@@ -68,12 +68,6 @@ function getBreadcrumbItems(pathname: string) {
     return ["Home", ...segments.map(formatSegment)];
 }
 
-function getPageTitle(pathname: string) {
-    if (!pathname || pathname === "/") return "Home";
-
-    const segments = pathname.split("/").filter(Boolean);
-    return formatSegment(segments[segments.length - 1]);
-}
 
 export default function AppShell({ children }: { children: ReactNode }) {
     const pathname = usePathname();
